@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/truckbites_db
+    url: jdbc:mysql://localhost:3307/truckbites_db
     username: root
     password: truckbites_root
     driver-class-name: com.mysql.cj.jdbc.Driver
