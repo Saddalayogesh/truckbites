@@ -105,6 +105,56 @@ services:
       - truckbites-network
 
   # ============================
+  # User Service MySQL Database
+  # ============================
+  user-mysql:
+    image: mysql:8.0
+    container_name: truckbites-user-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: truckbites_users_db
+      MYSQL_ROOT_PASSWORD: truckbites_root
+    ports:
+      - "3309:3306"
+    volumes:
+      - user_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - truckbites-network
+
+  # ============================
+  # User Service
+  # ============================
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: truckbites-user-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://user-mysql:3306/truckbites_users_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: truckbites_root
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+    depends_on:
+      user-mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+    networks:
+      - truckbites-network
+
+  # ============================
   # Legacy Monolith Backend
   # ============================
   backend:
@@ -130,6 +180,8 @@ volumes:
     name: truckbites_mysql_data
   auth_mysql_data:
     name: truckbites_auth_mysql_data
+  user_mysql_data:
+    name: truckbites_user_mysql_data
 
 networks:
   truckbites-network:
