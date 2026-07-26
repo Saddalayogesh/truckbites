@@ -8,6 +8,10 @@ const formatPrice = (price) => {
 export default function MenuItemCard({ item }) {
   const outOfStock = !item.isAvailable || (item.quantityAvailable != null && item.quantityAvailable <= 0);
 
+  const handleAddToCart = () => {
+    console.log('🛒 Add to Cart:', { ...item });
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-orange-200 overflow-hidden group">
       <div className="p-5">
@@ -53,6 +57,7 @@ export default function MenuItemCard({ item }) {
           </span>
         ) : (
           <button
+            onClick={handleAddToCart}
             className="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 active:scale-[0.98] transition-all duration-200 shadow-sm"
           >
             Add to Cart +

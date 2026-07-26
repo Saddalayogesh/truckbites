@@ -1,9 +1,28 @@
 import axiosClient from './axiosClient';
+import logger from '../utils/logger';
 
-export function login(data) {
-  return axiosClient.post('/auth/login', data);
+const COMPONENT = 'authApi';
+
+export async function login(data) {
+  logger.info(COMPONENT, 'Login request for', { email: data.email });
+  try {
+    const response = await axiosClient.post('/auth/login', data);
+    logger.info(COMPONENT, 'Login successful', { email: data.email });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Login failed', { email: data.email, error: error.message });
+    throw error;
+  }
 }
 
-export function register(data) {
-  return axiosClient.post('/auth/register', data);
+export async function register(data) {
+  logger.info(COMPONENT, 'Register request', { email: data.email, name: data.name });
+  try {
+    const response = await axiosClient.post('/auth/register', data);
+    logger.info(COMPONENT, 'Registration successful', { email: data.email });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Registration failed', { email: data.email, error: error.message });
+    throw error;
+  }
 }
