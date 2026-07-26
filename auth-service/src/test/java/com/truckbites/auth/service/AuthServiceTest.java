@@ -53,7 +53,7 @@ class AuthServiceTest {
         request.setPassword("password123");
 
         when(userRepository.existsByEmail("john@example.com")).thenReturn(false);
-        when(jwtUtil.generateToken("john@example.com")).thenReturn("test-jwt-token");
+        when(jwtUtil.generateToken(anyString(), anyString())).thenReturn("test-jwt-token");
 
         User savedUser = User.builder()
                 .id(1L)
@@ -76,7 +76,7 @@ class AuthServiceTest {
 
         verify(userRepository).existsByEmail("john@example.com");
         verify(userRepository).save(any(User.class));
-        verify(jwtUtil).generateToken("john@example.com");
+        verify(jwtUtil).generateToken("john@example.com", "CUSTOMER");
     }
 
     @Test
@@ -115,7 +115,7 @@ class AuthServiceTest {
                 .build();
 
         when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.of(user));
-        when(jwtUtil.generateToken("john@example.com")).thenReturn("test-jwt-token");
+        when(jwtUtil.generateToken("john@example.com", "CUSTOMER")).thenReturn("test-jwt-token");
 
         // Act
         AuthResponse response = authService.login(request);
@@ -128,7 +128,7 @@ class AuthServiceTest {
         assertThat(response.getRole()).isEqualTo(Role.CUSTOMER);
 
         verify(userRepository).findByEmail("john@example.com");
-        verify(jwtUtil).generateToken("john@example.com");
+        verify(jwtUtil).generateToken("john@example.com", "CUSTOMER");
     }
 
     @Test
