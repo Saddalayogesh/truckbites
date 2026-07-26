@@ -4,6 +4,15 @@ import com.truckbites.truck.dto.CreateTruckRequest;
 import com.truckbites.truck.dto.UpdateLocationRequest;
 import com.truckbites.truck.model.Truck;
 import com.truckbites.truck.service.TruckService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,19 +33,41 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * REST controller for food truck management.
+ * Provides public search and detail endpoints, plus authenticated
+ * endpoints for vendors to manage their own trucks.
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/trucks")
 @RequiredArgsConstructor
+@Tag(name = "Trucks", description = "Food truck management endpoints")
 public class TruckController {
 
     private final TruckService truckService;
 
     @GetMapping("/search")
+    @Operation(
+            summary = "Search for food trucks",
+            description = "Search trucks by cuisine type, location, or both. " +
+                    "When latitude, longitude, and radiusKm are provided, performs a " +
+                    "geospatial search using bounding-box pre-filtering and Haversine distance calculation. " +
+                    "When only cuisineType is provided, filters by cuisine. " +
+                    "With no parameters, returns all trucks."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of matching trucks returned",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Truck.class))))
+    })
     public ResponseEntity<List<Truck>> searchTrucks(
+            @Parameter(description = "Filter by cuisine type (e.g., Mexican, Italian, BBQ)", example = "Mexican")
             @RequestParam(required = false) String cuisineType,
+            @Parameter(description = "Latitude of the center point for location-based search", example = "40.7128")
             @RequestParam(required = false) Double latitude,
+            @Parameter(description = "Longitude of the center point for location-based search", example = "-74.0060")
             @RequestParam(required = false) Double longitude,
+            @Parameter(description = "Search radius in kilometers", example = "10.0")
             @RequestParam(required = false) Double radiusKm) {
 
         log.info("Search trucks: cuisineType={}, location=({},{}), radius={}km",
@@ -46,6 +77,18 @@ public class TruckController {
     }
 
     @GetMapping("/my-trucks")
+    @Operation(
+            summary = "Get my trucks (VENDOR)",
+            description = "Returns all trucks owned by the authenticated vendor. " +
+                    "Requires VENDOR role.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of vendor's trucks returned",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Truck.class)))),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - requires VENDOR role")
+    })
     public ResponseEntity<List<Truck>> getMyTrucks(Authentication authentication) {
         Long ownerId = extractUserId(authentication);
         log.info("Get my trucks for ownerId: {}", ownerId);
@@ -53,12 +96,34 @@ public class TruckController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Truck> getTruck(@PathVariable Long id) {
+    @Operation(
+            summary = "Get truck by ID",
+            description = "Returns detailed information about a specific food truck by its unique identifier."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Truck details returned",
+                    content = @Content(schema = @Schema(implementation = Truck.class))),
+            @ApiResponse(responseCode = "404", description = "Truck not found")
+    })
+    public ResponseEntity<Truck> getTruck(@Parameter(description = "Truck ID", example = "1") @PathVariable Long id) {
         log.info("Get truck by id: {}", id);
         return ResponseEntity.ok(truckService.getTruckById(id));
     }
 
     @PostMapping
+    @Operation(
+            summary = "Create a new truck (VENDOR)",
+            description = "Creates a new food truck. Only users with VENDOR role can create trucks. " +
+                    "The truck is created with CLOSED status by default.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Truck created successfully",
+                    content = @Content(schema = @Schema(implementation = Truck.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed - invalid input"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Only VENDOR users can create trucks")
+    })
     public ResponseEntity<Truck> createTruck(
             @Valid @RequestBody CreateTruckRequest request,
             Authentication authentication) {
@@ -71,8 +136,21 @@ public class TruckController {
     }
 
     @PutMapping("/{id}")
+    @Operation(
+            summary = "Update an existing truck (VENDOR)",
+            description = "Updates truck details. The authenticated vendor must own the truck.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Truck updated successfully",
+                    content = @Content(schema = @Schema(implementation = Truck.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed - invalid input"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Truck not found")
+    })
     public ResponseEntity<Truck> updateTruck(
-            @PathVariable Long id,
+            @Parameter(description = "Truck ID", example = "1") @PathVariable Long id,
             @Valid @RequestBody CreateTruckRequest request,
             Authentication authentication) {
         Long ownerId = extractUserId(authentication);
@@ -81,8 +159,22 @@ public class TruckController {
     }
 
     @PutMapping("/{id}/location")
+    @Operation(
+            summary = "Update truck location (VENDOR)",
+            description = "Updates the GPS coordinates of a food truck. " +
+                    "The authenticated vendor must own the truck.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Location updated successfully",
+                    content = @Content(schema = @Schema(implementation = Truck.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Truck not found")
+    })
     public ResponseEntity<Truck> updateLocation(
-            @PathVariable Long id,
+            @Parameter(description = "Truck ID", example = "1") @PathVariable Long id,
             @Valid @RequestBody UpdateLocationRequest request,
             Authentication authentication) {
         Long ownerId = extractUserId(authentication);
@@ -91,8 +183,20 @@ public class TruckController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(
+            summary = "Delete a truck (VENDOR)",
+            description = "Deletes a food truck and all its associated data. " +
+                    "The authenticated vendor must own the truck.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Truck deleted successfully"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Truck not found")
+    })
     public ResponseEntity<Void> deleteTruck(
-            @PathVariable Long id,
+            @Parameter(description = "Truck ID", example = "1") @PathVariable Long id,
             Authentication authentication) {
         Long ownerId = extractUserId(authentication);
         log.info("Delete truck: id={}, ownerId={}", id, ownerId);
