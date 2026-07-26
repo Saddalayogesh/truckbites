@@ -1,4 +1,7 @@
 import { createContext, useContext, useState, useCallback } from 'react';
+import logger from '../utils/logger';
+
+const COMPONENT = 'AuthContext';
 
 const AuthContext = createContext(null);
 
@@ -12,6 +15,10 @@ export function AuthProvider({ children }) {
 
   const login = useCallback((data) => {
     const { user: userData, token: jwt, role: userRole } = data;
+    logger.info(COMPONENT, 'User logged in', {
+      email: userData?.email,
+      role: userRole,
+    });
     setUser(userData);
     setToken(jwt);
     setRole(userRole);
@@ -25,13 +32,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
+    logger.info(COMPONENT, 'User logged out', { email: user?.email });
     setUser(null);
     setToken(null);
     setRole(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('role');
-  }, []);
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, token, role, login, logout }}>
