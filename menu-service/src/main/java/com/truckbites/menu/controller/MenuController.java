@@ -4,6 +4,15 @@ import com.truckbites.menu.dto.CreateMenuItemRequest;
 import com.truckbites.menu.dto.UpdateInventoryRequest;
 import com.truckbites.menu.model.MenuItem;
 import com.truckbites.menu.service.MenuService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,10 +31,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * REST controller for menu item management.
+ * Provides public menu browsing endpoints and authenticated
+ * endpoints for vendors to manage their menu items and inventory.
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/menu")
 @RequiredArgsConstructor
+@Tag(name = "Menu Items", description = "Menu and inventory management endpoints for food trucks")
 public class MenuController {
 
     private final MenuService menuService;
@@ -34,13 +49,34 @@ public class MenuController {
      * Public endpoint: returns available menu items for a truck.
      */
     @GetMapping("/truck/{truckId}")
-    public ResponseEntity<List<MenuItem>> getMenuByTruck(@PathVariable Long truckId) {
+    @Operation(
+            summary = "Get available menu items for a truck",
+            description = "Returns all currently available menu items for a specific food truck. " +
+                    "This is a public endpoint that does not require authentication."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of available menu items returned",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = MenuItem.class)))),
+            @ApiResponse(responseCode = "404", description = "Truck not found")
+    })
+    public ResponseEntity<List<MenuItem>> getMenuByTruck(
+            @Parameter(description = "ID of the food truck", example = "1") @PathVariable Long truckId) {
         log.info("Get available menu for truckId: {}", truckId);
         return ResponseEntity.ok(menuService.getMenuItemsByTruck(truckId));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<MenuItem> getMenuItem(@PathVariable Long id) {
+    @Operation(
+            summary = "Get a single menu item by ID",
+            description = "Returns details for a specific menu item."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Menu item details returned",
+                    content = @Content(schema = @Schema(implementation = MenuItem.class))),
+            @ApiResponse(responseCode = "404", description = "Menu item not found")
+    })
+    public ResponseEntity<MenuItem> getMenuItem(
+            @Parameter(description = "Menu item ID", example = "1") @PathVariable Long id) {
         log.info("Get menu item by id: {}", id);
         return ResponseEntity.ok(menuService.getMenuItemById(id));
     }
@@ -49,6 +85,20 @@ public class MenuController {
      * Creates a menu item after verifying truck existence and ownership.
      */
     @PostMapping
+    @Operation(
+            summary = "Create a new menu item (VENDOR)",
+            description = "Adds a new menu item to a food truck. The authenticated vendor must own the truck. " +
+                    "If quantityAvailable is set to 0, the item is marked as unavailable.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Menu item created successfully",
+                    content = @Content(schema = @Schema(implementation = MenuItem.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Truck not found")
+    })
     public ResponseEntity<MenuItem> createMenuItem(
             @Valid @RequestBody CreateMenuItemRequest request,
             Authentication authentication) {
@@ -63,8 +113,21 @@ public class MenuController {
      * Updates a menu item after verifying truck existence and ownership.
      */
     @PutMapping("/{id}")
+    @Operation(
+            summary = "Update a menu item (VENDOR)",
+            description = "Updates the details of an existing menu item. The authenticated vendor must own the truck.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Menu item updated successfully",
+                    content = @Content(schema = @Schema(implementation = MenuItem.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Menu item not found")
+    })
     public ResponseEntity<MenuItem> updateMenuItem(
-            @PathVariable Long id,
+            @Parameter(description = "Menu item ID", example = "1") @PathVariable Long id,
             @Valid @RequestBody CreateMenuItemRequest request,
             Authentication authentication) {
         Long ownerId = extractUserId(authentication);
@@ -76,8 +139,23 @@ public class MenuController {
      * Updates inventory with auto-flip — quantity 0 marks item unavailable.
      */
     @PatchMapping("/{id}/inventory")
+    @Operation(
+            summary = "Update menu item inventory (VENDOR)",
+            description = "Updates the inventory quantity for a menu item. " +
+                    "Setting quantity to 0 automatically marks the item as unavailable. " +
+                    "The authenticated vendor must own the truck.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Inventory updated successfully",
+                    content = @Content(schema = @Schema(implementation = MenuItem.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Menu item not found")
+    })
     public ResponseEntity<MenuItem> updateInventory(
-            @PathVariable Long id,
+            @Parameter(description = "Menu item ID", example = "1") @PathVariable Long id,
             @Valid @RequestBody UpdateInventoryRequest request,
             Authentication authentication) {
         Long ownerId = extractUserId(authentication);
@@ -87,8 +165,19 @@ public class MenuController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(
+            summary = "Delete a menu item (VENDOR)",
+            description = "Deletes a menu item. The authenticated vendor must own the truck.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Menu item deleted successfully"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Menu item not found")
+    })
     public ResponseEntity<Void> deleteMenuItem(
-            @PathVariable Long id,
+            @Parameter(description = "Menu item ID", example = "1") @PathVariable Long id,
             Authentication authentication) {
         Long ownerId = extractUserId(authentication);
         log.info("Delete menu item: id={}, ownerId={}", id, ownerId);

@@ -256,6 +256,58 @@ services:
     networks:
       - truckbites-network
 
+  # ============================
+  # Order Service MySQL Database
+  # ============================
+  order-mysql:
+    image: mysql:8.0
+    container_name: truckbites-order-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: order_db
+      MYSQL_ROOT_PASSWORD: truckbites_root
+    ports:
+      - "3312:3306"
+    volumes:
+      - order_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - truckbites-network
+
+  # ============================
+  # Order Service
+  # ============================
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    container_name: truckbites-order-service
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: truckbites_root
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+    depends_on:
+      order-mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+      menu-service:
+        condition: service_started
+    networks:
+      - truckbites-network
+
 volumes:
   mysql_data:
     name: truckbites_mysql_data
@@ -267,6 +319,8 @@ volumes:
     name: truckbites_truck_mysql_data
   menu_mysql_data:
     name: truckbites_menu_mysql_data
+  order_mysql_data:
+    name: truckbites_order_mysql_data
 
 networks:
   truckbites-network:
