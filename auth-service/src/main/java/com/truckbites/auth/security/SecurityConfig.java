@@ -1,6 +1,7 @@
 package com.truckbites.auth.security;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -17,6 +18,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -27,6 +29,7 @@ public class SecurityConfig {
     @Bean
     @Order(1)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        log.debug("Configuring HTTP security for auth-service");
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
@@ -38,11 +41,13 @@ public class SecurityConfig {
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
+        log.debug("HTTP security configured for auth-service");
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        log.debug("Configuring CORS for auth-service");
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
@@ -52,11 +57,13 @@ public class SecurityConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+        log.debug("CORS configured for auth-service");
         return source;
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
+        log.debug("Creating BCryptPasswordEncoder bean");
         return new BCryptPasswordEncoder();
     }
 }

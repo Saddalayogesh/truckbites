@@ -3,17 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { register as registerApi } from '../api/authApi';
 
-const ROLES = [
-  { value: 'CUSTOMER', label: 'Customer' },
-  { value: 'VENDOR', label: 'Vendor' },
-];
-
 export default function Register() {
   const [form, setForm] = useState({
     name: '',
     email: '',
     password: '',
-    role: 'CUSTOMER',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,8 +33,10 @@ export default function Register() {
     setError('');
     try {
       const res = await registerApi(form);
-      const { user, token, role } = res.data;
-      login({ user, token, role });
+      const { token, email, name, role } = res.data;
+      // Backend always assigns CUSTOMER role on registration and
+      // returns flat AuthResponse: { token, email, name, role }
+      login({ user: { email, name }, token, role });
 
       // Redirect based on role
       if (role === 'VENDOR') {
@@ -132,24 +128,11 @@ export default function Register() {
             />
           </div>
 
-          {/* Role */}
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-              I am a…
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={form.role}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors text-gray-800 bg-white"
-            >
-              {ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+          {/* Role hint — backend always creates CUSTOMER; role is not sent */}
+          <div className="bg-orange-50 border border-orange-200 rounded-lg px-4 py-3 text-sm text-orange-700">
+            <span className="font-medium">💡 Note:</span> New accounts are registered as{' '}
+            <strong>Customer</strong>. If you are a food truck owner, contact an admin to
+            upgrade your account to Vendor.
           </div>
 
           {/* Submit */}
