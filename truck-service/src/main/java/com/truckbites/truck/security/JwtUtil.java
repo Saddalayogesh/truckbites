@@ -1,8 +1,8 @@
-package com.truckbites.auth.security;
+package com.truckbites.truck.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
@@ -14,28 +14,11 @@ import java.util.Date;
 import java.util.function.Function;
 
 @Slf4j
-
 @Component
 public class JwtUtil {
 
     @Value("${jwt.secret}")
     private String secret;
-
-    @Value("${jwt.expiration}")
-    private long expiration;
-
-    public String generateToken(String email, String role) {
-        log.debug("Generating JWT token for email: {} with role: {}", email, role);
-        String token = Jwts.builder()
-                .setSubject(email)
-                .claim("role", role)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
-        log.debug("JWT token generated successfully for email: {}", email);
-        return token;
-    }
 
     public String extractUsername(String token) {
         log.debug("Extracting username from JWT token");
@@ -54,10 +37,15 @@ public class JwtUtil {
 
     public boolean isTokenValid(String token, String userEmail) {
         log.debug("Validating JWT token for email: {}", userEmail);
-        final String username = extractUsername(token);
-        boolean valid = (username.equals(userEmail)) && !isTokenExpired(token);
-        log.debug("Token validation result for {}: {}", userEmail, valid);
-        return valid;
+        try {
+            final String username = extractUsername(token);
+            boolean valid = (username.equals(userEmail)) && !isTokenExpired(token);
+            log.debug("Token validation result for {}: {}", userEmail, valid);
+            return valid;
+        } catch (ExpiredJwtException e) {
+            log.warn("Token is expired for email: {}", userEmail);
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
@@ -82,7 +70,6 @@ public class JwtUtil {
     }
 
     private Key getSigningKey() {
-        log.debug("Building signing key from secret");
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }

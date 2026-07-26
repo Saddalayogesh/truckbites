@@ -26,11 +26,11 @@ class JwtUtilTest {
     @DisplayName("Should generate a valid JWT token")
     void generateToken_shouldReturnValidToken() {
         // Act
-        String token = jwtUtil.generateToken("test@example.com");
+        String token = jwtUtil.generateToken("test@example.com", "CUSTOMER");
 
         // Assert
         assertThat(token).isNotNull().isNotBlank();
-        assertThat(token.split("\\.")).hasSize(3); // JWT has 3 parts (header, payload, signature)
+        assertThat(token.split("\\.")).hasSize(3);
     }
 
     @Test
@@ -38,7 +38,7 @@ class JwtUtilTest {
     void extractUsername_shouldReturnCorrectEmail() {
         // Arrange
         String email = "user@example.com";
-        String token = jwtUtil.generateToken(email);
+        String token = jwtUtil.generateToken(email, "CUSTOMER");
 
         // Act
         String extractedEmail = jwtUtil.extractUsername(token);
@@ -48,11 +48,24 @@ class JwtUtilTest {
     }
 
     @Test
+    @DisplayName("Should extract role from token")
+    void extractRole_shouldReturnCorrectRole() {
+        // Arrange
+        String token = jwtUtil.generateToken("user@example.com", "VENDOR");
+
+        // Act
+        String role = jwtUtil.extractRole(token);
+
+        // Assert
+        assertThat(role).isEqualTo("VENDOR");
+    }
+
+    @Test
     @DisplayName("Should validate token with correct username")
     void isTokenValid_shouldReturnTrue_whenUsernameMatches() {
         // Arrange
         String email = "user@example.com";
-        String token = jwtUtil.generateToken(email);
+        String token = jwtUtil.generateToken(email, "CUSTOMER");
 
         // Act
         boolean isValid = jwtUtil.isTokenValid(token, email);
@@ -65,7 +78,7 @@ class JwtUtilTest {
     @DisplayName("Should invalidate token with wrong username")
     void isTokenValid_shouldReturnFalse_whenUsernameDoesNotMatch() {
         // Arrange
-        String token = jwtUtil.generateToken("user@example.com");
+        String token = jwtUtil.generateToken("user@example.com", "CUSTOMER");
 
         // Act
         boolean isValid = jwtUtil.isTokenValid(token, "other@example.com");
@@ -76,16 +89,14 @@ class JwtUtilTest {
 
     @Test
     @DisplayName("Should generate valid JWT tokens with three parts")
-    void generateToken_shouldProduceValidJwtStructure() throws Exception {
+    void generateToken_shouldProduceValidJwtStructure() {
         // Arrange
-        String token = jwtUtil.generateToken("test@example.com");
+        String token = jwtUtil.generateToken("test@example.com", "CUSTOMER");
 
         // Act & Assert
         assertThat(token).isNotNull().isNotBlank();
         String[] parts = token.split("\\.");
-        assertThat(parts).hasSize(3); // header.payload.signature
-        
-        // Verify each part is base64-encoded (not empty)
+        assertThat(parts).hasSize(3);
         assertThat(parts[0]).isNotBlank();
         assertThat(parts[1]).isNotBlank();
         assertThat(parts[2]).isNotBlank();
@@ -96,7 +107,7 @@ class JwtUtilTest {
     void extractClaim_shouldReturnCorrectValue() {
         // Arrange
         String email = "claims@example.com";
-        String token = jwtUtil.generateToken(email);
+        String token = jwtUtil.generateToken(email, "ADMIN");
 
         // Act
         String subject = jwtUtil.extractClaim(token, Claims::getSubject);
