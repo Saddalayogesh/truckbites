@@ -181,6 +181,14 @@ public class OrderService {
                 .toList();
     }
 
+    public List<OrderResponse> getAllOrders() {
+        log.debug("Fetching all orders for admin");
+        return orderRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     public List<OrderResponse> getOrdersByTruck(Long truckId) {
         log.debug("Fetching orders for truckId: {}", truckId);
         return orderRepository.findByTruckIdOrderByCreatedAtDesc(truckId)

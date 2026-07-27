@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import FavoriteButton from './FavoriteButton';
 
 export default function TruckCard({ truck }) {
   const isOpen = truck.status === 'OPEN';
@@ -16,6 +17,8 @@ export default function TruckCard({ truck }) {
         ) : (
           <span className="text-6xl">🚚</span>
         )}
+        {/* Favorite button */}
+        <FavoriteButton truckId={truck.id} />
         {/* Status badge */}
         <div className="absolute top-3 right-3">
           <span

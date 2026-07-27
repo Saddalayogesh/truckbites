@@ -3,6 +3,7 @@ package com.truckbites.auth.controller;
 import com.truckbites.auth.dto.AuthResponse;
 import com.truckbites.auth.dto.LoginRequest;
 import com.truckbites.auth.dto.RegisterRequest;
+import com.truckbites.auth.dto.UserAdminResponse;
 import com.truckbites.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,10 +16,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * REST controller for authentication operations.
@@ -81,5 +86,24 @@ public class AuthController {
         AuthResponse response = authService.login(request);
         log.info("Login successful: email={}, role={}", response.getEmail(), response.getRole());
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Returns all registered users (ADMIN only).
+     */
+    @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "Get all users (ADMIN)",
+            description = "Returns all registered users in the system. Restricted to ADMIN users."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of all users returned"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - requires ADMIN role")
+    })
+    public ResponseEntity<List<UserAdminResponse>> getAllUsers() {
+        log.info("Get all users (admin)");
+        return ResponseEntity.ok(authService.getAllUsers());
     }
 }

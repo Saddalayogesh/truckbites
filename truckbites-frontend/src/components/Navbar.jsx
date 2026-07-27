@@ -47,6 +47,12 @@ export default function Navbar() {
                   Discover Trucks
                 </Link>
                 <Link
+                  to="/favorites"
+                  className="text-gray-700 hover:text-orange-600 font-medium transition-colors"
+                >
+                  Favorites
+                </Link>
+                <Link
                   to="/cart"
                   className="relative text-gray-700 hover:text-orange-600 font-medium transition-colors group"
                 >
@@ -61,7 +67,7 @@ export default function Navbar() {
                   to="/orders"
                   className="text-gray-700 hover:text-orange-600 font-medium transition-colors"
                 >
-                  Order History
+                  Orders
                 </Link>
                 <button
                   onClick={handleLogout}

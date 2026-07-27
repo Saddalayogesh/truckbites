@@ -10,6 +10,7 @@ import Checkout from '../pages/Checkout';
 import OrderTracking from '../pages/OrderTracking';
 import VendorDashboard from '../pages/VendorDashboard';
 import AdminDashboard from '../pages/AdminDashboard';
+import FavoritesPage from '../pages/FavoritesPage';
 
 export default function AppRoutes() {
   return (
@@ -32,6 +33,14 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['CUSTOMER']}>
             <TruckDiscovery />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/favorites"
+        element={
+          <ProtectedRoute allowedRoles={['CUSTOMER']}>
+            <FavoritesPage />
           </ProtectedRoute>
         }
       />

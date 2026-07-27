@@ -19,12 +19,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -180,6 +182,49 @@ public class TruckController {
         Long ownerId = extractUserId(authentication);
         log.info("Update location: truckId={}, ownerId={}", id, ownerId);
         return ResponseEntity.ok(truckService.updateLocation(id, request, ownerId));
+    }
+
+    /**
+     * Returns all trucks (ADMIN only).
+     */
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "Get all trucks (ADMIN)",
+            description = "Returns all trucks in the system. Restricted to ADMIN users.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of all trucks returned",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Truck.class)))),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - requires ADMIN role")
+    })
+    public ResponseEntity<List<Truck>> getAllTrucksAdmin() {
+        log.info("Get all trucks (admin)");
+        return ResponseEntity.ok(truckService.getAllTrucks());
+    }
+
+    @PatchMapping("/{id}/status")
+    @Operation(
+            summary = "Toggle truck status (VENDOR)",
+            description = "Toggles the truck's operational status between OPEN and CLOSED. " +
+                    "The authenticated vendor must own the truck.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Truck status toggled",
+                    content = @Content(schema = @Schema(implementation = Truck.class))),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Truck not found")
+    })
+    public ResponseEntity<Truck> toggleStatus(
+            @Parameter(description = "Truck ID", example = "1") @PathVariable Long id,
+            Authentication authentication) {
+        Long ownerId = extractUserId(authentication);
+        log.info("Toggle status: truckId={}, ownerId={}", id, ownerId);
+        return ResponseEntity.ok(truckService.toggleStatus(id, ownerId));
     }
 
     @DeleteMapping("/{id}")

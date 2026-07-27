@@ -26,3 +26,15 @@ export async function register(data) {
     throw error;
   }
 }
+
+export async function getAllUsersAdmin() {
+  logger.info(COMPONENT, 'Fetching all users (admin)');
+  try {
+    const response = await axiosClient.get('/auth/users');
+    logger.debug(COMPONENT, 'All users fetched', { count: response.data?.length });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to fetch all users', { error: error.message });
+    throw error;
+  }
+}
