@@ -1,3 +1,5 @@
+import { useCart } from '../context/CartContext';
+
 const formatPrice = (price) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -5,10 +7,13 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
-export default function MenuItemCard({ item }) {
+export default function MenuItemCard({ item, truckId }) {
+  const { addItem } = useCart();
   const outOfStock = !item.isAvailable || (item.quantityAvailable != null && item.quantityAvailable <= 0);
 
-  const handleAddToCart = () => {};
+  const handleAddToCart = () => {
+    addItem(item, truckId);
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-orange-200 overflow-hidden group">
