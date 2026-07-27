@@ -7,7 +7,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 /**
  * Feign client to validate order details from order-service.
  */
-@FeignClient(name = "order-service", path = "/api/orders")
+@FeignClient(name = "order-service", path = "/api/orders",
+        fallbackFactory = OrderServiceClientFallback.class)
 public interface OrderServiceClient {
 
     /**

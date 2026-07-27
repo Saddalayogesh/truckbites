@@ -69,6 +69,12 @@ export default function Navbar() {
                 >
                   Orders
                 </Link>
+                <Link
+                  to="/order-history"
+                  className="text-gray-700 hover:text-orange-600 font-medium transition-colors"
+                >
+                  Order History
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="text-gray-500 hover:text-red-600 font-medium transition-colors"
@@ -83,12 +89,6 @@ export default function Navbar() {
                   className="text-gray-700 hover:text-orange-600 font-medium transition-colors"
                 >
                   My Truck
-                </Link>
-                <Link
-                  to="/vendor/orders"
-                  className="text-gray-700 hover:text-orange-600 font-medium transition-colors"
-                >
-                  Orders
                 </Link>
                 <Link
                   to="/vendor/analytics"

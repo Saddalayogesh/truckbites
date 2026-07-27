@@ -7,7 +7,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 /**
  * Feign client to validate truck ownership from truck-service.
  */
-@FeignClient(name = "truck-service", path = "/api/trucks")
+@FeignClient(name = "truck-service", path = "/api/trucks",
+        fallbackFactory = TruckServiceClientFallback.class)
 public interface TruckServiceClient {
 
     /**

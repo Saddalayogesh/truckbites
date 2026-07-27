@@ -8,7 +8,9 @@ import TruckMenu from '../pages/TruckMenu';
 import Cart from '../pages/Cart';
 import Checkout from '../pages/Checkout';
 import OrderTracking from '../pages/OrderTracking';
+import OrderHistory from '../pages/OrderHistory';
 import VendorDashboard from '../pages/VendorDashboard';
+import VendorAnalytics from '../pages/VendorAnalytics';
 import AdminDashboard from '../pages/AdminDashboard';
 import FavoritesPage from '../pages/FavoritesPage';
 
@@ -76,6 +78,14 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/order-history"
+        element={
+          <ProtectedRoute allowedRoles={['CUSTOMER']}>
+            <OrderHistory />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Vendor routes */}
       <Route
@@ -83,6 +93,14 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['VENDOR']}>
             <VendorDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/vendor/analytics"
+        element={
+          <ProtectedRoute allowedRoles={['VENDOR']}>
+            <VendorAnalytics />
           </ProtectedRoute>
         }
       />

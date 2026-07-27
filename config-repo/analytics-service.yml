@@ -17,6 +17,12 @@ spring:
         hbm2ddl:
           auto: none
 
+spring:
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
 # NOTE: This service performs READ-ONLY native SQL queries against order_db.
 # It never persists, creates, or updates any data.
 

@@ -19,6 +19,12 @@ spring:
         hbm2ddl:
           auto: create-drop
 
+spring:
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
 eureka:
   client:
     enabled: false
