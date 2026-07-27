@@ -1,4 +1,4 @@
-package com.truckbites.order.event;
+package com.truckbites.notification.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +9,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Event received when an order is placed.
+ * Matches the structure published by order-service (with customerEmail).
+ */
 @Data
 @Builder
 @AllArgsConstructor

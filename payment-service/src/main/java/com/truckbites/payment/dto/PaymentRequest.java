@@ -1,6 +1,7 @@
 package com.truckbites.payment.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
@@ -23,4 +24,8 @@ public class PaymentRequest {
     @NotNull(message = "Payment method is required")
     @Schema(description = "Payment method (e.g., CARD, CASH, UPI)", example = "CARD", requiredMode = Schema.RequiredMode.REQUIRED)
     private String method;
+
+    @Schema(description = "Customer email for payment receipt notifications", example = "customer@example.com")
+    @Email(message = "Customer email must be a valid email address")
+    private String customerEmail;
 }

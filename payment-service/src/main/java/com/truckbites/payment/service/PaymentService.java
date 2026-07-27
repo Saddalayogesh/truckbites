@@ -41,6 +41,7 @@ public class PaymentService {
 
         Payment payment = Payment.builder()
                 .orderId(request.getOrderId())
+                .customerEmail(request.getCustomerEmail())
                 .amount(request.getAmount())
                 .status(gatewayStatus)
                 .method(request.getMethod())
@@ -89,6 +90,7 @@ public class PaymentService {
         OrderPaidEvent event = OrderPaidEvent.builder()
                 .paymentId(payment.getId())
                 .orderId(payment.getOrderId())
+                .customerEmail(payment.getCustomerEmail())
                 .amount(payment.getAmount())
                 .method(payment.getMethod())
                 .transactionRef(payment.getTransactionRef())

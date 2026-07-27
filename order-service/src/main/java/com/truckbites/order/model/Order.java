@@ -36,6 +36,9 @@ public class Order {
     @Column(nullable = false)
     private Long customerId;
 
+    @Column(nullable = false, length = 320)
+    private String customerEmail;
+
     @Column(nullable = false)
     private Long truckId;
 

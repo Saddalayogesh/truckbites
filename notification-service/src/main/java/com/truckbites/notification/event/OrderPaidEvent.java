@@ -1,4 +1,4 @@
-package com.truckbites.payment.event;
+package com.truckbites.notification.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,6 +8,10 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Event received when a payment is successfully processed.
+ * Matches the structure published by payment-service.
+ */
 @Data
 @Builder
 @AllArgsConstructor

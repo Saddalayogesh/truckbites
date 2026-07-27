@@ -381,6 +381,32 @@ services:
     networks:
       - truckbites-network
 
+  # ============================
+  # Notification Service
+  # ============================
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: truckbites-notification-service
+    restart: unless-stopped
+    ports:
+      - "8087:8087"
+    environment:
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME}
+      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD}
+    depends_on:
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - truckbites-network
+
 volumes:
   mysql_data:
     name: truckbites_mysql_data

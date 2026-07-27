@@ -3,6 +3,8 @@ package com.truckbites.order.dto;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -15,6 +17,11 @@ import java.util.List;
 @Data
 @Schema(description = "Request body for placing a new order")
 public class CreateOrderRequest {
+
+    @NotBlank(message = "Customer email is required for notifications")
+    @Email(message = "Customer email must be a valid email address")
+    @Schema(description = "Email of the customer placing the order (for notifications)", example = "customer@example.com", requiredMode = Schema.RequiredMode.REQUIRED)
+    private String customerEmail;
 
     @NotNull(message = "Truck ID is required")
     @Schema(description = "ID of the food truck to order from", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
