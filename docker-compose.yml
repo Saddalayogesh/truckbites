@@ -1,32 +1,24 @@
-version: "3.8"
+# ============================================================================
+# TruckBites Microservices - Docker Compose
+# ============================================================================
+# Start order:  eureka-server → config-server → databases+rabbitmq →
+#   auth/user/truck/payment/notification → menu/order/analytics → api-gateway
+#
+# Copy .env.example to .env and adjust variables as needed before starting.
+# ============================================================================
 
 services:
-  # =====================
-  # Shared MySQL Database
-  # =====================
-  mysql:
-    image: mysql:8.0
-    container_name: truckbites-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: truckbites_db
-      MYSQL_ROOT_PASSWORD: truckbites_root
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - truckbites-network
 
-  # ===========================
-  # Service Discovery (Eureka)
-  # ===========================
+  # ===========================================================================
+  # NOTE: The legacy shared `mysql` container (port 3307) with `truckbites_db`
+  # was removed — no service referenced it. Each service now has its own
+  # dedicated MySQL instance below.
+  # ===========================================================================
+
+  # ===========================================================================
+  # SECTION 1: Infrastructure (no dependencies)
+  # ===========================================================================
+
   eureka-server:
     build:
       context: ./eureka-server
@@ -38,227 +30,6 @@ services:
     networks:
       - truckbites-network
 
-  # ============================
-  # Centralized Config (Config Server)
-  # ============================
-  config-server:
-    build:
-      context: .
-      dockerfile: config-server/Dockerfile
-    container_name: truckbites-config
-    restart: unless-stopped
-    ports:
-      - "8888:8888"
-    depends_on:
-      - eureka-server
-    networks:
-      - truckbites-network
-
-  # ============================
-  # Auth Service MySQL Database
-  # ============================
-  auth-mysql:
-    image: mysql:8.0
-    container_name: truckbites-auth-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: truckbites_auth_db
-      MYSQL_ROOT_PASSWORD: truckbites_root
-    ports:
-      - "3308:3306"
-    volumes:
-      - auth_mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - truckbites-network
-
-  # ============================
-  # Auth Service
-  # ============================
-  auth-service:
-    build:
-      context: ./auth-service
-      dockerfile: Dockerfile
-    container_name: truckbites-auth-service
-    restart: unless-stopped
-    ports:
-      - "8081:8081"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://auth-mysql:3306/truckbites_auth_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: truckbites_root
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-    depends_on:
-      auth-mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_started
-      config-server:
-        condition: service_started
-    networks:
-      - truckbites-network
-
-  # ============================
-  # User Service MySQL Database
-  # ============================
-  user-mysql:
-    image: mysql:8.0
-    container_name: truckbites-user-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: truckbites_users_db
-      MYSQL_ROOT_PASSWORD: truckbites_root
-    ports:
-      - "3309:3306"
-    volumes:
-      - user_mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - truckbites-network
-
-  # ============================
-  # User Service
-  # ============================
-  user-service:
-    build:
-      context: ./user-service
-      dockerfile: Dockerfile
-    container_name: truckbites-user-service
-    restart: unless-stopped
-    ports:
-      - "8082:8082"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://user-mysql:3306/truckbites_users_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: truckbites_root
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-    depends_on:
-      user-mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_started
-      config-server:
-        condition: service_started
-    networks:
-      - truckbites-network
-
-  # ============================
-  # Truck Service MySQL Database
-  # ============================
-  truck-mysql:
-    image: mysql:8.0
-    container_name: truckbites-truck-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: truckbites_truck_db
-      MYSQL_ROOT_PASSWORD: truckbites_root
-    ports:
-      - "3310:3306"
-    volumes:
-      - truck_mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - truckbites-network
-
-  # ============================
-  # Menu Service MySQL Database
-  # ============================
-  menu-mysql:
-    image: mysql:8.0
-    container_name: truckbites-menu-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: truckbites_menu_db
-      MYSQL_ROOT_PASSWORD: truckbites_root
-    ports:
-      - "3311:3306"
-    volumes:
-      - menu_mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - truckbites-network
-
-  # ============================
-  # Truck Service
-  # ============================
-  truck-service:
-    build:
-      context: ./truck-service
-      dockerfile: Dockerfile
-    container_name: truckbites-truck-service
-    restart: unless-stopped
-    ports:
-      - "8083:8083"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://truck-mysql:3306/truckbites_truck_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: truckbites_root
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-    depends_on:
-      truck-mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_started
-      config-server:
-        condition: service_started
-    networks:
-      - truckbites-network
-
-  # ============================
-  # Menu Service
-  # ============================
-  menu-service:
-    build:
-      context: ./menu-service
-      dockerfile: Dockerfile
-    container_name: truckbites-menu-service
-    restart: unless-stopped
-    ports:
-      - "8084:8084"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://menu-mysql:3306/truckbites_menu_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: truckbites_root
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-    depends_on:
-      menu-mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_started
-      config-server:
-        condition: service_started
-      truck-service:
-        condition: service_started
-    networks:
-      - truckbites-network
-
-  # =====================
-  # RabbitMQ
-  # =====================
   rabbitmq:
     image: rabbitmq:3-management
     container_name: truckbites-rabbitmq
@@ -275,22 +46,43 @@ services:
     networks:
       - truckbites-network
 
-  # ============================
-  # Order Service MySQL Database
-  # ============================
-  order-mysql:
+  # ===========================================================================
+  # SECTION 2: Centralized Configuration
+  # ===========================================================================
+
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    container_name: truckbites-config
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_started
+    networks:
+      - truckbites-network
+
+  # ===========================================================================
+  # SECTION 3: Databases (parallel — no inter-dependencies)
+  # ===========================================================================
+
+  auth-mysql:
     image: mysql:8.0
-    container_name: truckbites-order-mysql
+    container_name: truckbites-auth-mysql
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: order_db
-      MYSQL_ROOT_PASSWORD: truckbites_root
+      MYSQL_DATABASE: truckbites_auth_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
     ports:
-      - "3312:3306"
+      - "3308:3306"
     volumes:
-      - order_mysql_data:/var/lib/mysql
+      - auth_mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-truckbites_root}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -298,9 +90,267 @@ services:
     networks:
       - truckbites-network
 
-  # ============================
-  # Order Service
-  # ============================
+  user-mysql:
+    image: mysql:8.0
+    container_name: truckbites-user-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: truckbites_users_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+    ports:
+      - "3309:3306"
+    volumes:
+      - user_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-truckbites_root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - truckbites-network
+
+  truck-mysql:
+    image: mysql:8.0
+    container_name: truckbites-truck-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: truckbites_truck_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+    ports:
+      - "3310:3306"
+    volumes:
+      - truck_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-truckbites_root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - truckbites-network
+
+  menu-mysql:
+    image: mysql:8.0
+    container_name: truckbites-menu-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: truckbites_menu_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+    ports:
+      - "3311:3306"
+    volumes:
+      - menu_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-truckbites_root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - truckbites-network
+
+  order-mysql:
+    image: mysql:8.0
+    container_name: truckbites-order-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: order_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+    ports:
+      - "3312:3306"
+    volumes:
+      - order_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-truckbites_root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - truckbites-network
+
+  payment-mysql:
+    image: mysql:8.0
+    container_name: truckbites-payment-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: payment_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+    ports:
+      - "3313:3306"
+    volumes:
+      - payment_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-truckbites_root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - truckbites-network
+
+  # ===========================================================================
+  # SECTION 4: Services with no Feign client dependencies (parallel tier)
+  # ===========================================================================
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: truckbites-auth-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://auth-mysql:3306/truckbites_auth_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47}
+    depends_on:
+      auth-mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+    networks:
+      - truckbites-network
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: truckbites-user-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://user-mysql:3306/truckbites_users_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47}
+    depends_on:
+      user-mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+    networks:
+      - truckbites-network
+
+  truck-service:
+    build:
+      context: ./truck-service
+      dockerfile: Dockerfile
+    container_name: truckbites-truck-service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://truck-mysql:3306/truckbites_truck_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47}
+    depends_on:
+      truck-mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+    networks:
+      - truckbites-network
+
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: truckbites-payment-service
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://payment-mysql:3306/payment_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47}
+    depends_on:
+      payment-mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - truckbites-network
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: truckbites-notification-service
+    restart: unless-stopped
+    ports:
+      - "8087:8087"
+    environment:
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47}
+      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME:-}
+      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD:-}
+    depends_on:
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - truckbites-network
+
+  # ===========================================================================
+  # SECTION 5: Services with Feign client dependencies (sequential tier)
+  # ===========================================================================
+
+  menu-service:
+    build:
+      context: ./menu-service
+      dockerfile: Dockerfile
+    container_name: truckbites-menu-service
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://menu-mysql:3306/truckbites_menu_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47}
+    depends_on:
+      menu-mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+      truck-service:
+        condition: service_started
+    networks:
+      - truckbites-network
+
   order-service:
     build:
       context: ./order-service
@@ -312,9 +362,10 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_db
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: truckbites_root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47}
     depends_on:
       order-mysql:
         condition: service_healthy
@@ -329,87 +380,6 @@ services:
     networks:
       - truckbites-network
 
-  # ============================
-  # Payment Service MySQL Database
-  # ============================
-  payment-mysql:
-    image: mysql:8.0
-    container_name: truckbites-payment-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: payment_db
-      MYSQL_ROOT_PASSWORD: truckbites_root
-    ports:
-      - "3313:3306"
-    volumes:
-      - payment_mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - truckbites-network
-
-  # ============================
-  # Payment Service
-  # ============================
-  payment-service:
-    build:
-      context: ./payment-service
-      dockerfile: Dockerfile
-    container_name: truckbites-payment-service
-    restart: unless-stopped
-    ports:
-      - "8086:8086"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://payment-mysql:3306/payment_db
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: truckbites_root
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-    depends_on:
-      payment-mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_started
-      config-server:
-        condition: service_started
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - truckbites-network
-
-  # ============================
-  # Notification Service
-  # ============================
-  notification-service:
-    build:
-      context: ./notification-service
-      dockerfile: Dockerfile
-    container_name: truckbites-notification-service
-    restart: unless-stopped
-    ports:
-      - "8087:8087"
-    environment:
-      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME}
-      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD}
-    depends_on:
-      eureka-server:
-        condition: service_started
-      config-server:
-        condition: service_started
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - truckbites-network
-
-  # ============================
-  # Analytics Service
-  # ============================
   analytics-service:
     build:
       context: ./analytics-service
@@ -419,8 +389,12 @@ services:
     ports:
       - "8088:8088"
     environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
       EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47}
     depends_on:
       order-mysql:
         condition: service_healthy
@@ -433,9 +407,50 @@ services:
     networks:
       - truckbites-network
 
+  # ===========================================================================
+  # SECTION 6: API Gateway (starts last — depends on all upstream services)
+  # ===========================================================================
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: truckbites-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JWT_SECRET: ${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47}
+    depends_on:
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      truck-service:
+        condition: service_started
+      menu-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      analytics-service:
+        condition: service_started
+    networks:
+      - truckbites-network
+
+# ============================================================================
+# Persistent Volumes
+# ============================================================================
+
 volumes:
-  mysql_data:
-    name: truckbites_mysql_data
   auth_mysql_data:
     name: truckbites_auth_mysql_data
   user_mysql_data:
@@ -448,6 +463,10 @@ volumes:
     name: truckbites_order_mysql_data
   payment_mysql_data:
     name: truckbites_payment_mysql_data
+
+# ============================================================================
+# Shared Network
+# ============================================================================
 
 networks:
   truckbites-network:
