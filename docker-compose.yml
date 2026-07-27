@@ -308,6 +308,56 @@ services:
     networks:
       - truckbites-network
 
+  # ============================
+  # Payment Service MySQL Database
+  # ============================
+  payment-mysql:
+    image: mysql:8.0
+    container_name: truckbites-payment-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: payment_db
+      MYSQL_ROOT_PASSWORD: truckbites_root
+    ports:
+      - "3313:3306"
+    volumes:
+      - payment_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ptruckbites_root"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - truckbites-network
+
+  # ============================
+  # Payment Service
+  # ============================
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: truckbites-payment-service
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://payment-mysql:3306/payment_db
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: truckbites_root
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+    depends_on:
+      payment-mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+    networks:
+      - truckbites-network
+
 volumes:
   mysql_data:
     name: truckbites_mysql_data
@@ -321,6 +371,8 @@ volumes:
     name: truckbites_menu_mysql_data
   order_mysql_data:
     name: truckbites_order_mysql_data
+  payment_mysql_data:
+    name: truckbites_payment_mysql_data
 
 networks:
   truckbites-network:

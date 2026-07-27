@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:h2:mem:menu_db
+    url: jdbc:h2:mem:menu_db;INIT=CREATE SCHEMA IF NOT EXISTS truckbites_menu_db
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -14,8 +14,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
-    database-platform: org.hibernate.dialect.H2Dialect
     show-sql: true
+    open-in-view: false
     properties:
       hibernate:
         format_sql: true
