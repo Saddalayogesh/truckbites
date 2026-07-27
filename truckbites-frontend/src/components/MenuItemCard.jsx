@@ -8,9 +8,7 @@ const formatPrice = (price) => {
 export default function MenuItemCard({ item }) {
   const outOfStock = !item.isAvailable || (item.quantityAvailable != null && item.quantityAvailable <= 0);
 
-  const handleAddToCart = () => {
-    console.log('🛒 Add to Cart:', { ...item });
-  };
+  const handleAddToCart = () => {};
 
   return (
     <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-orange-200 overflow-hidden group">
