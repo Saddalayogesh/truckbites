@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -138,6 +139,27 @@ public class OrderController {
             @Parameter(description = "Truck ID", example = "1") @PathVariable Long truckId) {
         log.info("Get orders for truckId: {}", truckId);
         return ResponseEntity.ok(orderService.getOrdersByTruck(truckId));
+    }
+
+    /**
+     * Returns all orders in the system (ADMIN only).
+     */
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(
+            summary = "Get all orders (ADMIN)",
+            description = "Returns all orders in the system. Restricted to ADMIN users.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of all orders returned",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = OrderResponse.class)))),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - requires ADMIN role")
+    })
+    public ResponseEntity<List<OrderResponse>> getAllOrdersAdmin() {
+        log.info("Get all orders (admin)");
+        return ResponseEntity.ok(orderService.getAllOrders());
     }
 
     /**

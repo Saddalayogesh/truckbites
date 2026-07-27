@@ -3,6 +3,7 @@ package com.truckbites.auth.service;
 import com.truckbites.auth.dto.AuthResponse;
 import com.truckbites.auth.dto.LoginRequest;
 import com.truckbites.auth.dto.RegisterRequest;
+import com.truckbites.auth.dto.UserAdminResponse;
 import com.truckbites.auth.model.Role;
 import com.truckbites.auth.model.User;
 import com.truckbites.auth.repository.UserRepository;
@@ -12,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -48,6 +51,20 @@ public class AuthService {
                 .name(user.getName())
                 .role(user.getRole())
                 .build();
+    }
+
+    public List<UserAdminResponse> getAllUsers() {
+        log.debug("Fetching all users for admin");
+        return userRepository.findAll()
+                .stream()
+                .map(user -> UserAdminResponse.builder()
+                        .id(user.getId())
+                        .name(user.getName())
+                        .email(user.getEmail())
+                        .role(user.getRole())
+                        .createdAt(user.getCreatedAt())
+                        .build())
+                .toList();
     }
 
     public AuthResponse login(LoginRequest request) {

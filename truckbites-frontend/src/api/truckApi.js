@@ -73,3 +73,45 @@ export async function getMyTrucks() {
     throw error;
   }
 }
+
+export async function toggleTruckStatus(id) {
+  logger.info(COMPONENT, 'Toggling truck status', { id });
+  try {
+    const response = await axiosClient.patch(`/trucks/${id}/status`);
+    logger.debug(COMPONENT, 'Truck status toggled', { id, status: response.data?.status });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to toggle truck status', { id, error: error.message });
+    throw error;
+  }
+}
+
+export async function addFavorite(truckId) {
+  logger.info(COMPONENT, 'Adding favorite', { truckId });
+  const response = await axiosClient.post(`/favorites/${truckId}`);
+  return response;
+}
+
+export async function removeFavorite(truckId) {
+  logger.info(COMPONENT, 'Removing favorite', { truckId });
+  const response = await axiosClient.delete(`/favorites/${truckId}`);
+  return response;
+}
+
+export async function getMyFavorites() {
+  logger.info(COMPONENT, 'Fetching my favorites');
+  const response = await axiosClient.get('/favorites');
+  return response;
+}
+
+export async function checkFavorite(truckId) {
+  logger.info(COMPONENT, 'Checking favorite', { truckId });
+  const response = await axiosClient.get(`/favorites/${truckId}/check`);
+  return response;
+}
+
+export async function getAllTrucksAdmin() {
+  logger.info(COMPONENT, 'Fetching all trucks (admin)');
+  const response = await axiosClient.get('/trucks/all');
+  return response;
+}

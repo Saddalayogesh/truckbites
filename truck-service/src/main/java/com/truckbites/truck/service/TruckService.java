@@ -9,6 +9,7 @@ import com.truckbites.truck.repository.TruckRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -135,5 +136,31 @@ public class TruckService {
                 });
         truckRepository.delete(truck);
         log.info("Truck deleted: id={}", id);
+    }
+
+    /**
+     * Toggles a truck's operational status (OPEN ↔ CLOSED).
+     * The vendor must own the truck.
+     */
+    @Transactional
+    public Truck toggleStatus(Long id, Long ownerId) {
+        log.debug("Toggling status for truck id: {} for ownerId: {}", id, ownerId);
+        Truck truck = truckRepository.findByIdAndOwnerId(id, ownerId)
+                .orElseThrow(() -> {
+                    log.warn("Truck not found or not owned by user: id={}, ownerId={}", id, ownerId);
+                    return new ResourceNotFoundException("Truck not found or access denied");
+                });
+        truck.setStatus(truck.getStatus() == TruckStatus.OPEN ? TruckStatus.CLOSED : TruckStatus.OPEN);
+        Truck saved = truckRepository.save(truck);
+        log.info("Truck status toggled to {} for id: {}", saved.getStatus(), id);
+        return saved;
+    }
+
+    /**
+     * Returns all trucks (admin-only).
+     */
+    public List<Truck> getAllTrucks() {
+        log.debug("Fetching all trucks for admin");
+        return truckRepository.findAll();
     }
 }

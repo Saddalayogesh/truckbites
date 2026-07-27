@@ -49,3 +49,41 @@ export async function getMyOrders() {
     throw error;
   }
 }
+
+export async function getOrdersByTruck(truckId, status) {
+  logger.info(COMPONENT, 'Fetching orders for truck', { truckId, status });
+  try {
+    let url = `/orders/truck/${truckId}`;
+    if (status) url += `/status?status=${status}`;
+    const response = await axiosClient.get(url);
+    logger.debug(COMPONENT, 'Truck orders fetched', { truckId, count: response.data?.length });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to fetch truck orders', { truckId, error: error.message });
+    throw error;
+  }
+}
+
+export async function updateOrderStatus(id, status) {
+  logger.info(COMPONENT, 'Updating order status', { id, status });
+  try {
+    const response = await axiosClient.patch(`/orders/${id}/status`, { status });
+    logger.debug(COMPONENT, 'Order status updated', { id, status });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to update order status', { id, error: error.message });
+    throw error;
+  }
+}
+
+export async function getAllOrdersAdmin() {
+  logger.info(COMPONENT, 'Fetching all orders (admin)');
+  try {
+    const response = await axiosClient.get('/orders/all');
+    logger.debug(COMPONENT, 'All orders fetched', { count: response.data?.length });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to fetch all orders', { error: error.message });
+    throw error;
+  }
+}
