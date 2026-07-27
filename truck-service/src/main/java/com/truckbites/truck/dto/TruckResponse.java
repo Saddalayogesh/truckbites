@@ -46,6 +46,9 @@ public class TruckResponse {
     @Schema(description = "URL to truck image", example = "https://example.com/images/taco-express.jpg")
     private String imageUrl;
 
+    @Schema(description = "Average rating based on customer reviews", example = "4.5")
+    private Double averageRating;
+
     @Schema(description = "Timestamp when the truck was created", example = "2026-01-15T10:30:00")
     private LocalDateTime createdAt;
 
