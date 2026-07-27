@@ -54,6 +54,10 @@ public class Truck {
 
     private String imageUrl;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Double averageRating = 0.0;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
