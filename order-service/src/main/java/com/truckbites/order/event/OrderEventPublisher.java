@@ -13,7 +13,7 @@ public class OrderEventPublisher {
 
     private final RabbitTemplate rabbitTemplate;
 
-    @Value("${app.rabbitmq.exchange:order-exchange}")
+    @Value("${app.rabbitmq.exchange:truckbites.exchange}")
     private String exchange;
 
     @Value("${app.rabbitmq.routing-key.order-placed:order.placed}")

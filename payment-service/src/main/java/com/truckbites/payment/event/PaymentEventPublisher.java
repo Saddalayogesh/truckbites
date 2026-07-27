@@ -13,7 +13,7 @@ public class PaymentEventPublisher {
 
     private final RabbitTemplate rabbitTemplate;
 
-    @Value("${app.rabbitmq.exchange:payment-exchange}")
+    @Value("${app.rabbitmq.exchange:truckbites.exchange}")
     private String exchange;
 
     @Value("${app.rabbitmq.routing-key.order-paid:order.paid}")
