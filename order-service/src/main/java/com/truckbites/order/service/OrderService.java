@@ -96,7 +96,8 @@ public class OrderService {
      */
     @Transactional
     public OrderResponse placeOrder(Long customerId, CreateOrderRequest request) {
-        log.info("Placing order for customerId={}, truckId={}", customerId, request.getTruckId());
+        log.info("Placing order for customerId={}, email={}, truckId={}",
+                customerId, request.getCustomerEmail(), request.getTruckId());
 
         // Validate each menu item and snapshot name/price
         List<OrderItem> items = new ArrayList<>();
@@ -119,6 +120,7 @@ public class OrderService {
 
         Order order = Order.builder()
                 .customerId(customerId)
+                .customerEmail(request.getCustomerEmail())
                 .truckId(request.getTruckId())
                 .totalAmount(totalAmount)
                 .status(OrderStatus.PLACED)
@@ -129,8 +131,8 @@ public class OrderService {
         order.getItems().forEach(item -> item.setOrder(order));
 
         Order saved = orderRepository.save(order);
-        log.info("Order placed with id: {} for customerId: {}, total: {}",
-                saved.getId(), customerId, totalAmount);
+        log.info("Order placed with id: {} for customerId: {}, email: {}, total: {}",
+                saved.getId(), customerId, request.getCustomerEmail(), totalAmount);
 
         // Publish order.placed event
         publishOrderPlacedEvent(saved);
@@ -151,6 +153,7 @@ public class OrderService {
         OrderPlacedEvent event = OrderPlacedEvent.builder()
                 .orderId(order.getId())
                 .customerId(order.getCustomerId())
+                .customerEmail(order.getCustomerEmail())
                 .truckId(order.getTruckId())
                 .totalAmount(order.getTotalAmount())
                 .createdAt(order.getCreatedAt())

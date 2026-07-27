@@ -2,21 +2,8 @@ server:
   port: 8087
 
 spring:
-  mail:
-    host: smtp.mailtrap.io
-    port: 587
-    username: ${MAILTRAP_USERNAME}
-    password: ${MAILTRAP_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-        transport:
-          protocol: smtp
   rabbitmq:
-    host: rabbitmq
+    host: localhost
     port: 5672
     username: guest
     password: guest
@@ -30,6 +17,8 @@ app:
     queue:
       notification: notification.queue
 
+# Mailtrap config is provided by Config Server in notification-service.yml
+
 jwt:
   secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47
 
@@ -38,4 +27,4 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: http://localhost:8761/eureka/

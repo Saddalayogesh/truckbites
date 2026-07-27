@@ -33,6 +33,9 @@ public class Payment {
     @Column(nullable = false)
     private Long orderId;
 
+    @Column(length = 320)
+    private String customerEmail;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 

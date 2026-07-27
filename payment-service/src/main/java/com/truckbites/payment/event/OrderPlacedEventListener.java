@@ -28,6 +28,7 @@ public class OrderPlacedEventListener {
         paymentRequest.setOrderId(event.getOrderId());
         paymentRequest.setAmount(event.getTotalAmount());
         paymentRequest.setMethod("AUTO");
+        paymentRequest.setCustomerEmail(event.getCustomerEmail());
 
         paymentService.processPayment(paymentRequest);
         log.info("Payment processed for orderId={} via auto-listener", event.getOrderId());

@@ -21,6 +21,7 @@ public class OrderPlacedEvent {
 
     private Long orderId;
     private Long customerId;
+    private String customerEmail;
     private Long truckId;
     private BigDecimal totalAmount;
     private LocalDateTime createdAt;
