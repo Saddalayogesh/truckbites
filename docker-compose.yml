@@ -407,6 +407,32 @@ services:
     networks:
       - truckbites-network
 
+  # ============================
+  # Analytics Service
+  # ============================
+  analytics-service:
+    build:
+      context: ./analytics-service
+      dockerfile: Dockerfile
+    container_name: truckbites-analytics-service
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+    depends_on:
+      order-mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+      truck-service:
+        condition: service_started
+    networks:
+      - truckbites-network
+
 volumes:
   mysql_data:
     name: truckbites_mysql_data
