@@ -27,6 +27,7 @@ export default function Checkout() {
   const { items, itemsByTruck, total, itemCount, truckIds, clearCart } = useCart();
 
   const [paymentMethod, setPaymentMethod] = useState('CARD');
+  const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -47,7 +48,9 @@ export default function Checkout() {
       const orderPromises = truckIds.map(async (truckId) => {
         const truckItems = itemsByTruck[truckId];
         const orderPayload = {
+          customerEmail: user?.email || 'customer@truckbites.com',
           truckId,
+          notes: notes.trim() || null,
           items: truckItems.map((ci) => ({
             menuItemId: ci.menuItemId,
             quantity: ci.quantity,
@@ -106,6 +109,44 @@ export default function Checkout() {
             <p className="text-gray-600">{user?.email || 'Signed in'}</p>
           </div>
 
+          {/* Delivery Address */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <span>📍</span> Delivery Address
+            </h2>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-gray-500 mb-2">Your saved address will be used for this order.</p>
+              <div className="flex items-center gap-2 text-gray-700">
+                <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-sm">{user?.address || 'Pickup at truck location'}</span>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Update your address in your <a href="/profile" className="text-orange-500 hover:text-orange-600 font-medium">profile settings</a>.
+              </p>
+            </div>
+          </div>
+
+          {/* Special Instructions */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h2 id="special-instructions-heading" className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <span>📝</span> Special Instructions
+            </h2>
+            <textarea
+              id="special-notes"
+              name="special-notes"
+              aria-labelledby="special-instructions-heading"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any special requests? e.g., No onions, extra sauce, allergies..."
+              rows={3}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none resize-none transition-all"
+            />
+            <p className="text-xs text-gray-400 mt-2">Share any dietary preferences or special instructions with the vendor.</p>
+          </div>
+
           {/* Payment method */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Payment Method</h2>
@@ -121,6 +162,7 @@ export default function Checkout() {
                 >
                   <input
                     type="radio"
+                    id={`payment-${method.value}`}
                     name="paymentMethod"
                     value={method.value}
                     checked={paymentMethod === method.value}

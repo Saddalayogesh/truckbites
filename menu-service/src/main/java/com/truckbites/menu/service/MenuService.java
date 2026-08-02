@@ -171,4 +171,12 @@ public class MenuService {
         menuItemRepository.delete(menuItem);
         log.info("Menu item deleted: id={}", id);
     }
+
+    public List<MenuItem> searchMenuItems(String query) {
+        log.debug("Searching menu items with query: {}", query);
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        return menuItemRepository.findByNameContainingIgnoreCase(query.trim());
+    }
 }

@@ -1,56 +1,52 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import ProtectedRoute from '../components/ProtectedRoute';
+import LoadingSpinner from '../components/LoadingSpinner';
 
-import Login from '../pages/Login';
-import Register from '../pages/Register';
-import TruckDiscovery from '../pages/TruckDiscovery';
-import TruckMenu from '../pages/TruckMenu';
-import Cart from '../pages/Cart';
-import Checkout from '../pages/Checkout';
-import OrderTracking from '../pages/OrderTracking';
-import OrderHistory from '../pages/OrderHistory';
-import VendorDashboard from '../pages/VendorDashboard';
-import VendorAnalytics from '../pages/VendorAnalytics';
-import AdminDashboard from '../pages/AdminDashboard';
-import FavoritesPage from '../pages/FavoritesPage';
+const Login = lazy(() => import('../pages/Login'));
+const Register = lazy(() => import('../pages/Register'));
+const TruckDiscovery = lazy(() => import('../pages/TruckDiscovery'));
+const TruckMenu = lazy(() => import('../pages/TruckMenu'));
+const Cart = lazy(() => import('../pages/Cart'));
+const Checkout = lazy(() => import('../pages/Checkout'));
+const OrderTracking = lazy(() => import('../pages/OrderTracking'));
+const OrderHistory = lazy(() => import('../pages/OrderHistory'));
+const VendorDashboard = lazy(() => import('../pages/VendorDashboard'));
+const VendorAnalytics = lazy(() => import('../pages/VendorAnalytics'));
+const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
+const FavoritesPage = lazy(() => import('../pages/FavoritesPage'));
+const Profile = lazy(() => import('../pages/Profile'));
+const ForgotPassword = lazy(() => import('../pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('../pages/ResetPassword'));
+const NotFound = lazy(() => import('../pages/NotFound'));
+
+function SuspenseWrapper({ children }) {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><LoadingSpinner size="lg" text="Loading..." /></div>}>
+      {children}
+    </Suspense>
+  );
+}
 
 export default function AppRoutes() {
   return (
+    <SuspenseWrapper>
     <Routes>
-      {/* Public routes */}
+      {/* Public routes — anyone can browse trucks */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/discover" element={<TruckDiscovery />} />
+      <Route path="/" element={<TruckDiscovery />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Customer routes */}
-      <Route
-        path="/discover"
-        element={
-          <ProtectedRoute allowedRoles={['CUSTOMER']}>
-            <TruckDiscovery />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trucks"
-        element={
-          <ProtectedRoute allowedRoles={['CUSTOMER']}>
-            <TruckDiscovery />
-          </ProtectedRoute>
-        }
-      />
+      {/* Customer-only routes (require auth) */}
+      <Route path="/trucks/:id/menu" element={<TruckMenu />} />
       <Route
         path="/favorites"
         element={
           <ProtectedRoute allowedRoles={['CUSTOMER']}>
             <FavoritesPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/trucks/:id/menu"
-        element={
-          <ProtectedRoute allowedRoles={['CUSTOMER']}>
-            <TruckMenu />
           </ProtectedRoute>
         }
       />
@@ -86,16 +82,16 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
-      {/* Vendor routes */}
       <Route
-        path="/vendor-dashboard"
+        path="/profile"
         element={
-          <ProtectedRoute allowedRoles={['VENDOR']}>
-            <VendorDashboard />
+          <ProtectedRoute allowedRoles={['CUSTOMER', 'VENDOR', 'ADMIN']}>
+            <Profile />
           </ProtectedRoute>
         }
       />
+
+      {/* Vendor routes */}
       <Route
         path="/vendor/analytics"
         element={
@@ -123,8 +119,9 @@ export default function AppRoutes() {
         }
       />
 
-      {/* Default redirect */}
-      <Route path="/" element={<TruckDiscovery />} />
+      {/* 404 */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
+    </SuspenseWrapper>
   );
 }

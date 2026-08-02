@@ -38,3 +38,15 @@ export async function getAllUsersAdmin() {
     throw error;
   }
 }
+
+export async function updateUserRole(userId, role) {
+  logger.info(COMPONENT, 'Updating user role', { userId, role });
+  try {
+    const response = await axiosClient.put(`/auth/users/${userId}/role`, { role });
+    logger.info(COMPONENT, 'User role updated', { userId, role });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to update user role', { userId, role, error: error.message });
+    throw error;
+  }
+}

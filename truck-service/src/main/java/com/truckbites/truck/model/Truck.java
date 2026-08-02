@@ -58,6 +58,10 @@ public class Truck {
     @Builder.Default
     private Double averageRating = 0.0;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer estimatedPrepTimeMinutes = 15;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

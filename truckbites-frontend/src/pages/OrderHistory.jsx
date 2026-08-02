@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyOrders } from '../api/orderApi';
+import { addReview } from '../api/truckApi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../components/Toast';
+import { useCart } from '../context/CartContext';
 import logger from '../utils/logger';
 
 var COMPONENT = 'OrderHistory';
@@ -40,7 +42,12 @@ export default function OrderHistory() {
   var _b = useState(true), loading = _b[0], setLoading = _b[1];
   var _c = useState(null), error = _c[0], setError = _c[1];
   var _d = useState('ALL'), statusFilter = _d[0], setStatusFilter = _d[1];
+  var _e = useState(null), reviewOrder = _e[0], setReviewOrder = _e[1];
+  var _f = useState(5), reviewRating = _f[0], setReviewRating = _f[1];
+  var _g = useState(''), reviewComment = _g[0], setReviewComment = _g[1];
+  var _h = useState(false), submittingReview = _h[0], setSubmittingReview = _h[1];
   var addToast = useToast().addToast;
+  var addItem = useCart().addItem;
 
   var fetchOrders = useCallback(function() {
     setLoading(true);
@@ -58,6 +65,49 @@ export default function OrderHistory() {
   }, []);
 
   useEffect(function() { fetchOrders(); }, [fetchOrders]);
+
+  /** One-click re-order: pre-fill cart with all items from this completed order */
+  var handleReorder = useCallback(function(order) {
+    if (!order.items || order.items.length === 0) {
+      addToast('This order has no items to re-order', 'error');
+      return;
+    }
+    var count = 0;
+    order.items.forEach(function(item) {
+      addItem(
+        { id: item.menuItemId, name: item.itemName, price: item.price },
+        order.truckId,
+        item.quantity
+      );
+      count += item.quantity;
+    });
+    addToast('Added ' + count + ' item' + (count !== 1 ? 's' : '') + ' to your cart!', 'success');
+    logger.info(COMPONENT, 'Re-order initiated', { orderId: order.id, itemCount: count });
+  }, [addItem, addToast]);
+
+  /** Submit review for a completed order */
+  var handleSubmitReview = useCallback(function() {
+    if (!reviewOrder) return;
+    setSubmittingReview(true);
+    addReview(reviewOrder.truckId, {
+      orderId: reviewOrder.id,
+      rating: reviewRating,
+      comment: reviewComment,
+    })
+      .then(function() {
+        addToast('Thank you for your review!', 'success');
+        setReviewOrder(null);
+        setReviewRating(5);
+        setReviewComment('');
+        // Refresh orders to reflect reviewed status
+        fetchOrders();
+      })
+      .catch(function(err) {
+        logger.error(COMPONENT, 'Failed to submit review', { error: err.message });
+        addToast(err.response?.data?.message || 'Failed to submit review', 'error');
+      })
+      .finally(function() { setSubmittingReview(false); });
+  }, [reviewOrder, reviewRating, reviewComment, addToast, fetchOrders]);
 
   var filteredOrders = statusFilter === 'ALL'
     ? orders
@@ -119,6 +169,7 @@ export default function OrderHistory() {
           <p className="text-sm text-gray-500 mb-4">{filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}</p>
           <div className="space-y-4">
             {filteredOrders.map(function(order) {
+              var isReviewed = order.reviewed;
               return (
                 <div key={order.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                   <div className="p-5">
@@ -146,14 +197,31 @@ export default function OrderHistory() {
                       </div>
                     )}
 
-                    <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-end gap-3">
+                    <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-end gap-3 flex-wrap">
                       {order.status === 'COMPLETED' && (
-                        <Link
-                          to={'/trucks/' + order.truckId + '/menu'}
-                          className="text-xs text-orange-600 hover:text-orange-700 font-medium"
-                        >
-                          Re-order
-                        </Link>
+                        <>
+                          <button
+                            onClick={function() { handleReorder(order); }}
+                            className="text-xs px-3 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium transition-colors"
+                          >
+                            &#x1f504; Re-order
+                          </button>
+                          {!isReviewed && (
+                            <button
+                              onClick={function() {
+                                setReviewOrder(order);
+                                setReviewRating(5);
+                                setReviewComment('');
+                              }}
+                              className="text-xs px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium transition-colors"
+                            >
+                              &#x2b50; Review
+                            </button>
+                          )}
+                          {isReviewed && (
+                            <span className="text-xs text-gray-400 font-medium">&#x2714; Reviewed</span>
+                          )}
+                        </>
                       )}
                       <Link
                         to={'/orders?orderId=' + order.id}
@@ -168,6 +236,54 @@ export default function OrderHistory() {
             })}
           </div>
         </>
+      )}
+
+      {/* Review Modal */}
+      {reviewOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={function(e) { if (e.target === e.currentTarget) setReviewOrder(null); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-800">Rate Your Experience</h3>
+              <button onClick={function() { setReviewOrder(null); }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-500 mb-4">Order #{reviewOrder.id}</p>
+
+              {/* Star Rating */}
+              <div className="flex items-center justify-center gap-2 mb-6">
+                {[1, 2, 3, 4, 5].map(function(star) {
+                  return (
+                    <button
+                      key={star}
+                      onClick={function() { setReviewRating(star); }}
+                      className={'text-3xl transition-all duration-150 ' + (star <= reviewRating ? 'text-yellow-400 scale-110' : 'text-gray-200 hover:text-yellow-200')}
+                      title={star + ' star' + (star !== 1 ? 's' : '')}
+                    >
+                      &#9733;
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Comment */}
+              <textarea
+                value={reviewComment}
+                onChange={function(e) { setReviewComment(e.target.value); }}
+                placeholder="Tell us about your experience (optional)"
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none resize-none transition-all"
+              />
+
+              <button
+                onClick={handleSubmitReview}
+                disabled={submittingReview}
+                className="mt-4 w-full py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {submittingReview ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

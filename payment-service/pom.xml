@@ -25,10 +25,23 @@
     </properties>
 
     <dependencies>
+        <!-- Shared common module (exceptions, JWT, security filter) -->
+        <dependency>
+            <groupId>com.truckbites</groupId>
+            <artifactId>truckbites-common</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <!-- Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Actuator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
         <!-- Security -->
@@ -102,6 +115,13 @@
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
         </dependency>
+
+<!-- Stripe -->
+<dependency>
+  <groupId>com.stripe</groupId>
+  <artifactId>stripe-java</artifactId>
+  <version>22.10.0</version>
+</dependency>
 
         <!-- Lombok -->
         <dependency>

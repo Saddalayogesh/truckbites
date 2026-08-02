@@ -24,11 +24,17 @@ public class AuthResponse {
     )
     private String token;
 
+    @Schema(description = "Refresh token for obtaining new access tokens", example = "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4...")
+    private String refreshToken;
+
     @Schema(description = "Email address of the authenticated user", example = "john@example.com")
     private String email;
 
     @Schema(description = "Full name of the authenticated user", example = "John Doe")
     private String name;
+
+    @Schema(description = "User ID", example = "1")
+    private Long userId;
 
     @Schema(description = "User role for authorization", example = "CUSTOMER",
             allowableValues = {"CUSTOMER", "VENDOR", "ADMIN"})

@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.truckbites.common.security.UserPrincipal;
 import java.util.List;
 
 /**
@@ -114,8 +115,9 @@ public class TruckController {
 
     @PostMapping
     @Operation(
-            summary = "Create a new truck (VENDOR)",
-            description = "Creates a new food truck. Only users with VENDOR role can create trucks. " +
+            summary = "Create a new truck (VENDOR/ADMIN)",
+            description = "Creates a new food truck. VENDOR users create trucks owned by themselves. " +
+                    "ADMIN users can set the ownerId in the request body to create a truck for any vendor. " +
                     "The truck is created with CLOSED status by default.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
@@ -124,14 +126,14 @@ public class TruckController {
                     content = @Content(schema = @Schema(implementation = Truck.class))),
             @ApiResponse(responseCode = "400", description = "Validation failed - invalid input"),
             @ApiResponse(responseCode = "401", description = "Authentication required"),
-            @ApiResponse(responseCode = "403", description = "Only VENDOR users can create trucks")
+            @ApiResponse(responseCode = "403", description = "Only VENDOR or ADMIN users can create trucks")
     })
     public ResponseEntity<Truck> createTruck(
             @Valid @RequestBody CreateTruckRequest request,
             Authentication authentication) {
 
-        checkVendorRole(authentication);
-        Long ownerId = extractUserId(authentication);
+        checkVendorOrAdminRole(authentication);
+        Long ownerId = determineOwnerId(request, authentication);
         log.info("Create truck: name='{}', ownerId={}", request.getName(), ownerId);
         Truck truck = truckService.createTruck(request, ownerId);
         return ResponseEntity.status(HttpStatus.CREATED).body(truck);
@@ -250,20 +252,33 @@ public class TruckController {
     }
 
     /**
-     * Ensures the authenticated user has the VENDOR role.
-     * Called only for truck creation (VENDOR-only operation).
+     * Ensures the authenticated user has VENDOR or ADMIN role.
      */
-    private void checkVendorRole(Authentication authentication) {
+    private void checkVendorOrAdminRole(Authentication authentication) {
         if (authentication == null) {
             throw new AccessDeniedException("Authentication required");
         }
-        boolean isVendor = authentication.getAuthorities().stream()
+        boolean allowed = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch(auth -> auth.equals("ROLE_VENDOR"));
-        if (!isVendor) {
-            log.warn("Non-VENDOR user attempted to create a truck");
-            throw new AccessDeniedException("Only VENDOR users can create trucks");
+                .anyMatch(auth -> auth.equals("ROLE_VENDOR") || auth.equals("ROLE_ADMIN"));
+        if (!allowed) {
+            log.warn("Non-VENDOR/non-ADMIN user attempted to create a truck");
+            throw new AccessDeniedException("Only VENDOR or ADMIN users can create trucks");
         }
+    }
+
+    /**
+     * Determines the owner ID for the new truck.
+     * ADMINs can set ownerId in the request body; VENDORs are always the owner.
+     */
+    private Long determineOwnerId(CreateTruckRequest request, Authentication authentication) {
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(auth -> auth.equals("ROLE_ADMIN"));
+        if (isAdmin && request.getOwnerId() != null) {
+            return request.getOwnerId();
+        }
+        return extractUserId(authentication);
     }
 
     /**
@@ -272,9 +287,11 @@ public class TruckController {
      * TODO: Extract userId from JWT custom claims once added to auth-service.
      */
     private Long extractUserId(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof String email) {
-            log.debug("Authenticated user: {}", email);
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal) {
+            log.debug("Authenticated user: {} (id={})", principal.email(), principal.userId());
+            return principal.userId();
         }
-        return 0L; // Placeholder — replace with userId from JWT claim when available
+        log.debug("Could not extract userId from authentication, defaulting to 0");
+        return 0L;
     }
 }

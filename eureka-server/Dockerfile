@@ -1,3 +1,7 @@
+# ============================================================================
+# Multi-stage Dockerfile — eureka-server (no truckbites-common dep)
+# ============================================================================
+
 # Stage 1: Build with Maven
 FROM maven:3.9-eclipse-temurin-25-alpine AS build
 WORKDIR /app

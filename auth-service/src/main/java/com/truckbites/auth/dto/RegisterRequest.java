@@ -26,4 +26,8 @@ public class RegisterRequest {
     @Size(min = 6, message = "Password must be at least 6 characters")
     @Schema(description = "Password (minimum 6 characters)", example = "password123", requiredMode = Schema.RequiredMode.REQUIRED, minLength = 6)
     private String password;
+
+    // NOTE: No role field here on purpose. Public registration always creates a
+    // CUSTOMER account; roles are only assigned by an ADMIN via the role-update
+    // endpoint. Accepting a role here would be a privilege escalation.
 }

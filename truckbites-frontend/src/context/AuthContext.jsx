@@ -7,14 +7,20 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      localStorage.removeItem('user');
+      return null;
+    }
   });
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [role, setRole] = useState(() => localStorage.getItem('role'));
+  const [refreshToken, setRefreshToken] = useState(() => localStorage.getItem('refreshToken'));
 
   const login = useCallback((data) => {
-    const { user: userData, token: jwt, role: userRole } = data;
+    const { user: userData, token: jwt, role: userRole, refreshToken: rt } = data;
     logger.info(COMPONENT, 'User logged in', {
       email: userData?.email,
       role: userRole,
@@ -22,12 +28,19 @@ export function AuthProvider({ children }) {
     setUser(userData);
     setToken(jwt);
     setRole(userRole);
+    if (rt) setRefreshToken(rt);
     localStorage.setItem('token', jwt);
     localStorage.setItem('user', JSON.stringify(userData));
-    if (userRole) {
-      localStorage.setItem('role', userRole);
-    } else {
-      localStorage.removeItem('role');
+    if (userRole) localStorage.setItem('role', userRole);
+    if (rt) localStorage.setItem('refreshToken', rt);
+  }, []);
+
+  const setNewToken = useCallback((newToken, newRefreshToken) => {
+    setToken(newToken);
+    localStorage.setItem('token', newToken);
+    if (newRefreshToken) {
+      setRefreshToken(newRefreshToken);
+      localStorage.setItem('refreshToken', newRefreshToken);
     }
   }, []);
 
@@ -36,13 +49,15 @@ export function AuthProvider({ children }) {
     setUser(null);
     setToken(null);
     setRole(null);
+    setRefreshToken(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('role');
+    localStorage.removeItem('refreshToken');
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, token, role, login, logout }}>
+    <AuthContext.Provider value={{ user, token, role, refreshToken, login, logout, setNewToken }}>
       {children}
     </AuthContext.Provider>
   );

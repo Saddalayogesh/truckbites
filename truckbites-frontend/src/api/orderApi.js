@@ -87,3 +87,27 @@ export async function getAllOrdersAdmin() {
     throw error;
   }
 }
+
+export async function bulkUpdateOrderStatus(orderIds, status) {
+  logger.info(COMPONENT, 'Bulk updating order status', { orderIds, status });
+  try {
+    const response = await axiosClient.patch('/orders/bulk-status', { orderIds, status });
+    logger.info(COMPONENT, 'Bulk status updated', { count: orderIds.length, status });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to bulk update status', { error: error.message });
+    throw error;
+  }
+}
+
+export async function cancelOrder(orderId) {
+  logger.info(COMPONENT, 'Cancelling order', { orderId });
+  try {
+    const response = await axiosClient.post(`/orders/${orderId}/cancel`);
+    logger.info(COMPONENT, 'Order cancelled', { orderId });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to cancel order', { orderId, error: error.message });
+    throw error;
+  }
+}

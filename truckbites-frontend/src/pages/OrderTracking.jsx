@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getOrderById, getMyOrders } from '../api/orderApi';
+import { getOrderById, getMyOrders, cancelOrder } from '../api/orderApi';
+import { getTruckById } from '../api/truckApi';
 import logger from '../utils/logger';
 
 const COMPONENT = 'OrderTracking';
@@ -21,6 +22,24 @@ const STEP_ICONS = {
   COMPLETED: '🎉',
 };
 
+// Simple notification sound using Web Audio API
+function playNotificationSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch { /* Audio not supported */ }
+}
+
 const formatPrice = (price) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -37,9 +56,49 @@ const formatDate = (dateStr) => {
   });
 };
 
-function OrderCard({ order }) {
+function OrderCard({ order, onCancel }) {
   const currentStepIndex = STEPS.indexOf(order.status);
   const isCancelled = order.status === 'CANCELLED';
+  const [estimatedPrepMins, setEstimatedPrepMins] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState(null);
+
+  const canCancel = order.status === 'PLACED' && !isCancelled;
+
+  // Fetch truck prep time for ETA calculation
+  useEffect(() => {
+    let cancelled = false;
+    if (order.truckId && !isCancelled) {
+      getTruckById(order.truckId)
+        .then((res) => {
+          if (!cancelled && res.data?.estimatedPrepTimeMinutes) {
+            setEstimatedPrepMins(res.data.estimatedPrepTimeMinutes);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, [order.truckId, isCancelled]);
+
+  // Calculate estimated completion time
+  const estimatedReadyTime = useMemo(() => {
+    if (!order.createdAt || !estimatedPrepMins) return null;
+    const orderTime = new Date(order.createdAt);
+    return new Date(orderTime.getTime() + estimatedPrepMins * 60000);
+  }, [order.createdAt, estimatedPrepMins]);
+
+  const getTimeRemaining = () => {
+    if (!estimatedReadyTime) return null;
+    const now = new Date();
+    const diffMs = estimatedReadyTime - now;
+    if (diffMs <= 0) return 'Any moment now';
+    const mins = Math.ceil(diffMs / 60000);
+    if (mins >= 60) {
+      const hrs = Math.floor(mins / 60);
+      return `${hrs}h ${mins % 60}m`;
+    }
+    return `${mins} min`;
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
@@ -61,6 +120,17 @@ function OrderCard({ order }) {
       </div>
 
       <div className="p-6">
+        {/* Special Instructions */}
+        {order.notes && (
+          <div className="mb-4 bg-orange-50 border border-orange-100 rounded-lg px-4 py-3 flex items-start gap-3">
+            <span className="text-lg flex-shrink-0 mt-0.5">📝</span>
+            <div>
+              <p className="text-xs font-medium text-orange-700">Special Instructions</p>
+              <p className="text-sm text-orange-800 mt-0.5">{order.notes}</p>
+            </div>
+          </div>
+        )}
+
         {/* Items */}
         <div className="mb-6">
           <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Items</h4>
@@ -76,6 +146,26 @@ function OrderCard({ order }) {
             ))}
           </div>
         </div>
+
+        {/* ETA badge */}
+        {estimatedPrepMins && currentStepIndex >= 0 && currentStepIndex < 2 && (
+          <div className="mb-4 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 flex items-center gap-3">
+            <span className="text-xl">⏱️</span>
+            <div>
+              <p className="text-sm font-medium text-blue-800">
+                Est. ready in <strong>{estimatedPrepMins} min</strong>
+              </p>
+              {estimatedReadyTime && (
+                <p className="text-xs text-blue-600 mt-0.5">
+                  ~{estimatedReadyTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  {getTimeRemaining() && currentStepIndex === 0 && (
+                    <span> &middot; {getTimeRemaining()} remaining</span>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Total */}
         <div className="border-t border-gray-100 pt-3 flex justify-between items-center mb-6">
@@ -122,6 +212,32 @@ function OrderCard({ order }) {
           </div>
         )}
 
+        {/* Cancel Button - only within 60-sec window */}
+        {canCancel && (
+          <div className="mb-4">
+            <button
+              onClick={async () => {
+                if (!window.confirm('Are you sure you want to cancel this order?')) return;
+                setCancelling(true);
+                setCancelError(null);
+                try {
+                  await cancelOrder(order.id);
+                  if (onCancel) onCancel(order.id);
+                } catch (err) {
+                  setCancelError(err.response?.data?.message || 'Failed to cancel order');
+                } finally {
+                  setCancelling(false);
+                }
+              }}
+              disabled={cancelling}
+              className="text-xs px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors disabled:opacity-50"
+            >
+              {cancelling ? 'Cancelling...' : '❌ Cancel Order (within 60s)'}
+            </button>
+            {cancelError && <p className="text-xs text-red-500 mt-1">{cancelError}</p>}
+          </div>
+        )}
+
         {/* Cancelled state */}
         {isCancelled && (
           <div className="text-center py-4">
@@ -142,6 +258,8 @@ export default function OrderTracking() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const prevOrderStatusesRef = useRef({});
+
   const fetchOrders = useCallback(async () => {
     try {
       if (highlightedOrderId) {
@@ -152,7 +270,25 @@ export default function OrderTracking() {
         });
       } else {
         const res = await getMyOrders();
-        setOrders(res.data || []);
+        const newOrders = res.data || [];
+
+        // Check for status changes and play notification sound
+        const prevStatuses = prevOrderStatusesRef.current;
+        if (Object.keys(prevStatuses).length > 0) {
+          newOrders.forEach((order) => {
+            const prevStatus = prevStatuses[order.id];
+            if (prevStatus && prevStatus !== order.status && order.status === 'READY') {
+              playNotificationSound();
+            }
+          });
+        }
+
+        // Update stored statuses
+        const currentStatuses = {};
+        newOrders.forEach((o) => { currentStatuses[o.id] = o.status; });
+        prevOrderStatusesRef.current = currentStatuses;
+
+        setOrders(newOrders);
       }
       setError(null);
     } catch (err) {
@@ -223,6 +359,7 @@ export default function OrderTracking() {
             <OrderCard
               key={order.id}
               order={order}
+              onCancel={() => fetchOrders()}
             />
           ))}
         </div>

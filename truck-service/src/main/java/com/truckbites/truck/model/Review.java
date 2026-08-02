@@ -45,6 +45,9 @@ public class Review {
     @Column(length = 2000)
     private String comment;
 
+    @Column(length = 2000)
+    private String vendorReply;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

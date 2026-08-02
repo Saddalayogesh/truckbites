@@ -27,6 +27,9 @@ public class CreateOrderRequest {
     @Schema(description = "ID of the food truck to order from", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long truckId;
 
+    @Schema(description = "Special instructions for the order (e.g., allergies, preferences)", example = "No onions, extra cheese")
+    private String notes;
+
     @NotEmpty(message = "At least one item is required")
     @Valid
     @ArraySchema(minItems = 1, schema = @Schema(implementation = OrderItemRequest.class))

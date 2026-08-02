@@ -33,10 +33,10 @@ export default function Register() {
     setError('');
     try {
       const res = await registerApi(form);
-      const { token, email, name, role } = res.data;
-      // Backend always assigns CUSTOMER role on registration and
-      // returns flat AuthResponse: { token, email, name, role }
-      login({ user: { email, name }, token, role });
+      const { token, email, name, role, userId, refreshToken } = res.data;
+      // Backend always assigns CUSTOMER role on registration
+      // Returns AuthResponse: { token, refreshToken, email, name, role, userId }
+      login({ user: { id: userId, email, name }, token, role, refreshToken });
 
       // Redirect based on role
       if (role === 'VENDOR') {

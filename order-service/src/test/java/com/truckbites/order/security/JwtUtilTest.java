@@ -1,5 +1,7 @@
 package com.truckbites.order.security;
 
+import com.truckbites.common.security.JwtUtil;
+
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -16,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class JwtUtilTest {
 
-    private static final String TEST_SECRET = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47";
+    private static final String TEST_SECRET = "b7d3f9c1e8a24b5d6f7a8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0";
 
     private JwtUtil jwtUtil;
 
