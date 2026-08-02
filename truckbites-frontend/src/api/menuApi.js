@@ -52,3 +52,26 @@ export async function updateInventory(id, quantity) {
     throw error;
   }
 }
+
+export async function deleteMenuItem(id) {
+  logger.info(COMPONENT, 'Deleting menu item', { id });
+  try {
+    await axiosClient.delete(`/menu/${id}`);
+    logger.info(COMPONENT, 'Menu item deleted', { id });
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to delete menu item', { id, error: error.message });
+    throw error;
+  }
+}
+
+export async function searchMenuItems(query) {
+  logger.info(COMPONENT, 'Searching menu items', { query });
+  try {
+    const response = await axiosClient.get('/menu/search', { params: { q: query } });
+    logger.debug(COMPONENT, 'Menu search results', { query, count: response.data?.length });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to search menu items', { query, error: error.message });
+    throw error;
+  }
+}

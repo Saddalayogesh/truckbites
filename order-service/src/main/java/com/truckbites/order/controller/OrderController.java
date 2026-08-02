@@ -1,5 +1,6 @@
 package com.truckbites.order.controller;
 
+import com.truckbites.order.dto.BulkStatusUpdateRequest;
 import com.truckbites.order.dto.CreateOrderRequest;
 import com.truckbites.order.dto.OrderResponse;
 import com.truckbites.order.dto.OrderStatusUpdateRequest;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.truckbites.common.security.UserPrincipal;
 import java.util.List;
 
 /**
@@ -239,10 +241,57 @@ public class OrderController {
      * The principal is the email (username) set by JwtValidationFilter.
      * TODO: Extract userId from JWT custom claims once added to auth-service.
      */
+    @PostMapping("/bulk-status")
+    @Operation(
+            summary = "Bulk update order statuses (VENDOR)",
+            description = "Updates the status of multiple orders at once. Validates truck ownership.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    public ResponseEntity<List<OrderResponse>> bulkUpdateStatus(
+            @RequestBody BulkStatusUpdateRequest request,
+            Authentication authentication) {
+        checkVendorRole(authentication);
+        Long vendorId = extractUserId(authentication);
+        log.info("Bulk update: {} orders to status {}", request.getOrderIds().size(), request.getStatus());
+        OrderStatus newStatus = OrderStatus.valueOf(request.getStatus().toUpperCase());
+        OrderStatusUpdateRequest statusRequest = new OrderStatusUpdateRequest();
+        statusRequest.setStatus(newStatus);
+        return ResponseEntity.ok(orderService.bulkUpdateOrderStatus(
+                request.getOrderIds(), statusRequest, vendorId));
+    }
+
+    /**
+     * Cancel an order (CUSTOMER only, within 60 seconds of placing).
+     */
+    @PostMapping("/{id}/cancel")
+    @Operation(
+            summary = "Cancel an order (CUSTOMER)",
+            description = "Cancels an order within the 60-second cancellation window. " +
+                    "Only the customer who placed the order can cancel it.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Order cancelled successfully",
+                    content = @Content(schema = @Schema(implementation = OrderResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Cancellation window expired or order already completed"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Not your order"),
+            @ApiResponse(responseCode = "404", description = "Order not found")
+    })
+    public ResponseEntity<OrderResponse> cancelOrder(
+            @Parameter(description = "Order ID", example = "1") @PathVariable Long id,
+            Authentication authentication) {
+        Long customerId = extractUserId(authentication);
+        log.info("Cancel order: id={}, customerId={}", id, customerId);
+        return ResponseEntity.ok(orderService.cancelOrder(id, customerId));
+    }
+
     private Long extractUserId(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof String email) {
-            log.debug("Authenticated user: {}", email);
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal) {
+            log.debug("Authenticated user: {} (id={})", principal.email(), principal.userId());
+            return principal.userId();
         }
-        return 0L; // Placeholder — replace with userId from JWT claim when available
+        log.debug("Could not extract userId from authentication, defaulting to 0");
+        return 0L;
     }
 }

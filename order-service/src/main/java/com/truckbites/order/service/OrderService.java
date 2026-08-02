@@ -123,6 +123,7 @@ public class OrderService {
                 .customerEmail(request.getCustomerEmail())
                 .truckId(request.getTruckId())
                 .totalAmount(totalAmount)
+                .notes(request.getNotes())
                 .status(OrderStatus.PLACED)
                 .items(items)
                 .build();
@@ -229,6 +230,63 @@ public class OrderService {
                 .toList();
     }
 
+    /**
+     * Bulk update order statuses. Validates truck ownership for each order.
+     */
+    @Transactional
+    public List<OrderResponse> bulkUpdateOrderStatus(List<Long> orderIds, OrderStatusUpdateRequest request, Long vendorId) {
+        log.info("Bulk updating {} orders to status {} by vendorId={}", orderIds.size(), request.getStatus(), vendorId);
+        List<OrderResponse> results = new ArrayList<>();
+        for (Long id : orderIds) {
+            try {
+                results.add(updateOrderStatus(id, request, vendorId));
+            } catch (Exception e) {
+                log.warn("Failed to update order {}: {}", id, e.getMessage());
+            }
+        }
+        return results;
+    }
+
+    /**
+     * Cancels an order within the 60-second cancellation window.
+     */
+    @Transactional
+    public OrderResponse cancelOrder(Long orderId, Long customerId) {
+        log.info("Cancellation requested for orderId={} by customerId={}", orderId, customerId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> {
+                    log.warn("Order not found with id: {}", orderId);
+                    return new ResourceNotFoundException("Order not found with id: " + orderId);
+                });
+
+        // Verify the order belongs to this customer
+        if (!order.getCustomerId().equals(customerId)) {
+            log.warn("Customer {} does not own order {}", customerId, orderId);
+            throw new UnauthorizedException("This order does not belong to you");
+        }
+
+        // Check if order is already completed or cancelled
+        if (order.getStatus() == OrderStatus.COMPLETED || order.getStatus() == OrderStatus.CANCELLED) {
+            log.warn("Order {} cannot be cancelled - status is {}", orderId, order.getStatus());
+            throw new IllegalStateException("Order cannot be cancelled: already " + order.getStatus());
+        }
+
+        // Check 60-second cancellation window
+        if (order.getCreatedAt() != null) {
+            long secondsSinceOrder = java.time.Duration.between(order.getCreatedAt(), java.time.LocalDateTime.now()).getSeconds();
+            if (secondsSinceOrder > 60) {
+                log.warn("Order {} cancellation window expired ({}s ago)", orderId, secondsSinceOrder);
+                throw new IllegalStateException("Cancellation window of 60 seconds has expired");
+            }
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        Order saved = orderRepository.save(order);
+        log.info("Order {} cancelled successfully", orderId);
+        return toResponse(saved);
+    }
+
     private OrderResponse toResponse(Order order) {
         List<OrderResponse.OrderItemResponse> itemResponses = order.getItems().stream()
                 .map(item -> OrderResponse.OrderItemResponse.builder()
@@ -245,6 +303,7 @@ public class OrderService {
                 .customerId(order.getCustomerId())
                 .truckId(order.getTruckId())
                 .totalAmount(order.getTotalAmount())
+                .notes(order.getNotes())
                 .status(order.getStatus())
                 .createdAt(order.getCreatedAt())
                 .items(itemResponses)

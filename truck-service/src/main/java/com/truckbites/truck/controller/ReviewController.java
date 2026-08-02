@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.truckbites.common.security.UserPrincipal;
 import java.util.List;
 
 @Slf4j
@@ -90,6 +91,31 @@ public class ReviewController {
         return ResponseEntity.ok(responses);
     }
 
+    @PostMapping("/{reviewId}/reply")
+    @Operation(
+            summary = "Vendor reply to a review",
+            description = "Allows a vendor to reply to a customer review. The vendor must own the truck.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Reply posted successfully",
+                    content = @Content(schema = @Schema(implementation = ReviewResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Reply text is empty"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Review not found")
+    })
+    public ResponseEntity<ReviewResponse> replyToReview(
+            @PathVariable Long reviewId,
+            @RequestBody java.util.Map<String, String> body,
+            Authentication authentication) {
+        String reply = body.get("reply");
+        Long vendorId = extractUserId(authentication);
+        log.info("Reply to reviewId: {} by vendorId: {}", reviewId, vendorId);
+        Review review = reviewService.replyToReview(reviewId, reply, vendorId);
+        return ResponseEntity.ok(toReviewResponse(review));
+    }
+
     private ReviewResponse toReviewResponse(Review review) {
         return ReviewResponse.builder()
                 .id(review.getId())
@@ -98,6 +124,7 @@ public class ReviewController {
                 .orderId(review.getOrderId())
                 .rating(review.getRating())
                 .comment(review.getComment())
+                .vendorReply(review.getVendorReply())
                 .createdAt(review.getCreatedAt())
                 .build();
     }
@@ -106,9 +133,11 @@ public class ReviewController {
      * Extracts the user ID from the Authentication principal.
      */
     private Long extractUserId(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof String email) {
-            log.debug("Authenticated user: {}", email);
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal) {
+            log.debug("Authenticated user: {} (id={})", principal.email(), principal.userId());
+            return principal.userId();
         }
-        return 0L; // Placeholder — replace with userId from JWT claim when available
+        log.debug("Could not extract userId from authentication, defaulting to 0");
+        return 0L;
     }
 }

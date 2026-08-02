@@ -98,6 +98,28 @@ public class ReviewService {
     }
 
     /**
+     * Adds or updates a vendor reply to a review.
+     */
+    @Transactional
+    public Review replyToReview(Long reviewId, String reply, Long vendorId) {
+        log.info("Vendor {} replying to review {}", vendorId, reviewId);
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Review not found with id: " + reviewId));
+
+        // Validate vendor owns the truck
+        Truck truck = truckRepository.findById(review.getTruckId())
+                .orElseThrow(() -> new ResourceNotFoundException("Truck not found"));
+        if (!truck.getOwnerId().equals(vendorId)) {
+            throw new SecurityException("You do not own this truck");
+        }
+
+        review.setVendorReply(reply);
+        Review saved = reviewRepository.save(review);
+        log.info("Vendor reply added to review {}", reviewId);
+        return saved;
+    }
+
+    /**
      * Returns all reviews for a specific truck, ordered by most recent first.
      */
     @Transactional(readOnly = true)

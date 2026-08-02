@@ -238,10 +238,20 @@ Containers start in strict dependency order, managed by Docker Compose `depends_
 git clone https://github.com/your-org/truckbites.git
 cd truckbites
 
-# Optional: copy and customize env vars
+# REQUIRED: copy and customize env vars (JWT_SECRET must be set)
 cp .env.example .env
+# Then generate your own secret and paste it into .env:
+#   openssl rand -hex 32
 ```
 
-> **Note:** `.env` is optional — all variables have sensible defaults. Only
-> `MAILTRAP_USERNAME` / `MAILTRAP_PASSWORD` are needed if you want the
-> notification service to send emails. Without them, th
+> **Note:** `.env` is **required** — `JWT_SECRET` has no default and the stack
+> refuses to start without it (a known tutorial secret was removed from the
+> codebase for security). `MAILTRAP_USERNAME` / `MAILTRAP_PASSWORD` are only
+> needed if you want the notification service to send emails. Without them, th
+
+> **⚠️ Important:** if you previously exported `JWT_SECRET` in your shell, clear
+> it first — a stale export overrides `.env`:
+>
+> ```bash
+> unset JWT_SECRET   # or export JWT_SECRET=<your new value>
+> ```

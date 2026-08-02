@@ -2,6 +2,8 @@ package com.truckbites.auth.security;
 
 import com.truckbites.auth.model.User;
 import com.truckbites.auth.repository.UserRepository;
+import com.truckbites.common.security.JwtUtil;
+import com.truckbites.common.security.UserPrincipal;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
@@ -57,8 +59,9 @@ public class JwtFilter extends OncePerRequestFilter {
                             new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
                     );
 
+                    UserPrincipal principal = new UserPrincipal(user.getEmail(), user.getId());
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            user,
+                            principal,
                             null,
                             authorities
                     );

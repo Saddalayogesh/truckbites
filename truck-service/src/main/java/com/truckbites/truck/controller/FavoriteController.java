@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.truckbites.common.security.UserPrincipal;
 import java.util.List;
 
 @Slf4j
@@ -139,9 +140,11 @@ public class FavoriteController {
      * Extracts the user ID from the Authentication principal.
      */
     private Long extractUserId(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof String email) {
-            log.debug("Authenticated user: {}", email);
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal) {
+            log.debug("Authenticated user: {} (id={})", principal.email(), principal.userId());
+            return principal.userId();
         }
-        return 0L; // Placeholder — replace with userId from JWT claim when available
+        log.debug("Could not extract userId from authentication, defaulting to 0");
+        return 0L;
     }
 }

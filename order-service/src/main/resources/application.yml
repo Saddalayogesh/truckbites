@@ -5,7 +5,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3312/order_db
     username: root
-    password: truckbites_root
+    password: ${SPRING_DATASOURCE_PASSWORD:-truckbites_root}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -21,23 +21,13 @@ spring:
     username: guest
     password: guest
 
-app:
-  rabbitmq:
-    exchange: truckbites.exchange
-    routing-key:
-      order-placed: order.placed
-      order-paid: order.paid
-    queue:
-      order-paid: order.paid.queue
-
-spring:
   cloud:
     openfeign:
       circuitbreaker:
         enabled: true
 
 jwt:
-  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47
+  secret: ${JWT_SECRET}
 
 eureka:
   client:

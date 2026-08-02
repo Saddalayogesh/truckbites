@@ -10,7 +10,22 @@ const axiosClient = axios.create({
   },
 });
 
-// Request interceptor to attach JWT token and log requests
+// Flag to prevent infinite refresh loop
+let isRefreshing = false;
+let failedQueue = [];
+
+function processQueue(error, token = null) {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+}
+
+// Request interceptor to attach JWT token
 axiosClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -30,7 +45,7 @@ axiosClient.interceptors.request.use(
   }
 );
 
-// Response interceptor to log responses and handle auth errors
+// Response interceptor for token refresh on 401
 axiosClient.interceptors.response.use(
   (response) => {
     logger.debug(COMPONENT, 'Response', {
@@ -40,7 +55,63 @@ axiosClient.interceptors.response.use(
     });
     return response;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        // No refresh token, force logout
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('role');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return axiosClient(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const baseUrl = import.meta.env.VITE_API_BASE_URL;
+        const response = await axios.post(`${baseUrl}/auth/refresh`, {
+          refreshToken: refreshToken,
+        });
+
+        const { token: newToken, refreshToken: newRefreshToken } = response.data;
+
+        localStorage.setItem('token', newToken);
+        if (newRefreshToken) {
+          localStorage.setItem('refreshToken', newRefreshToken);
+        }
+
+        processQueue(null, newToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return axiosClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('role');
+        localStorage.removeItem('refreshToken');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
     if (error.response) {
       logger.error(COMPONENT, 'Response error', {
         status: error.response.status,
@@ -48,14 +119,9 @@ axiosClient.interceptors.response.use(
         data: error.response.data,
       });
 
-      // Auto-logout on 401/403
-      if (error.response.status === 401 || error.response.status === 403) {
-        logger.warn(COMPONENT, 'Auth error, clearing session');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('role');
-        window.location.href = '/login';
-      }
+      // Note: 403 (Forbidden) is NOT an auth-session failure — e.g. a VENDOR
+      // visiting an ADMIN-only page. Only 401 triggers logout (handled above).
+      // 403s are surfaced in-app so the user can act on the specific error.
     } else if (error.request) {
       logger.error(COMPONENT, 'Network error - no response received', error.message);
     } else {

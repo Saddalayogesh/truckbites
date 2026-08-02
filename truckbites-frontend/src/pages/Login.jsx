@@ -25,9 +25,9 @@ export default function Login() {
     setError('');
     try {
       const res = await loginApi(form);
-      const { token, email, name, role } = res.data;
-      // Backend returns flat AuthResponse: { token, email, name, role }
-      login({ user: { email, name }, token, role });
+      const { token, email, name, role, userId, refreshToken } = res.data;
+      // Backend returns AuthResponse: { token, refreshToken, email, name, role, userId }
+      login({ user: { id: userId, email, name }, token, role, refreshToken });
 
       // Redirect based on role
       if (role === 'VENDOR') {

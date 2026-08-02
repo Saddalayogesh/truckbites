@@ -50,6 +50,9 @@ public class Order {
     @Builder.Default
     private OrderStatus status = OrderStatus.PLACED;
 
+    @Column(length = 500)
+    private String notes;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

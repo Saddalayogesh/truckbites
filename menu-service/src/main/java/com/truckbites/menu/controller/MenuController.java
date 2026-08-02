@@ -27,8 +27,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.truckbites.common.security.UserPrincipal;
 import java.util.List;
 
 /**
@@ -48,6 +50,22 @@ public class MenuController {
     /**
      * Public endpoint: returns available menu items for a truck.
      */
+    @GetMapping("/search")
+    @Operation(
+            summary = "Search menu items across all trucks",
+            description = "Searches menu items by name across all trucks. Useful for finding specific dishes."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of matching menu items",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = MenuItem.class))))
+    })
+    public ResponseEntity<List<MenuItem>> searchMenuItems(
+            @Parameter(description = "Search query (menu item name)", example = "taco")
+            @RequestParam String q) {
+        log.info("Search menu items: q={}", q);
+        return ResponseEntity.ok(menuService.searchMenuItems(q));
+    }
+
     @GetMapping("/truck/{truckId}")
     @Operation(
             summary = "Get available menu items for a truck",
@@ -191,9 +209,11 @@ public class MenuController {
      * TODO: Extract userId from JWT custom claims once added to auth-service.
      */
     private Long extractUserId(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof String email) {
-            log.debug("Authenticated user: {}", email);
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal principal) {
+            log.debug("Authenticated user: {} (id={})", principal.email(), principal.userId());
+            return principal.userId();
         }
-        return 0L; // Placeholder — replace with userId from JWT claim when available
+        log.debug("Could not extract userId from authentication, defaulting to 0");
+        return 0L;
     }
 }

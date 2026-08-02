@@ -115,3 +115,84 @@ export async function getAllTrucksAdmin() {
   const response = await axiosClient.get('/trucks/all');
   return response;
 }
+
+export async function updateTruck(id, data) {
+  logger.info(COMPONENT, 'Updating truck', { id, name: data.name });
+  try {
+    const response = await axiosClient.put(`/trucks/${id}`, data);
+    logger.debug(COMPONENT, 'Truck updated', { id });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to update truck', { id, error: error.message });
+    throw error;
+  }
+}
+
+export async function deleteTruck(id) {
+  logger.info(COMPONENT, 'Deleting truck', { id });
+  try {
+    await axiosClient.delete(`/trucks/${id}`);
+    logger.info(COMPONENT, 'Truck deleted', { id });
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to delete truck', { id, error: error.message });
+    throw error;
+  }
+}
+
+export async function getTruckReviews(truckId) {
+  logger.info(COMPONENT, 'Fetching reviews', { truckId });
+  try {
+    const response = await axiosClient.get(`/reviews/truck/${truckId}`);
+    logger.debug(COMPONENT, 'Reviews fetched', { truckId, count: response.data?.length });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to fetch reviews', { truckId, error: error.message });
+    throw error;
+  }
+}
+
+export async function addReview(truckId, data) {
+  logger.info(COMPONENT, 'Adding review', { truckId, rating: data.rating });
+  try {
+    const response = await axiosClient.post(`/reviews/truck/${truckId}`, data);
+    logger.info(COMPONENT, 'Review added', { truckId });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to add review', { truckId, error: error.message });
+    throw error;
+  }
+}
+
+export async function replyToReview(reviewId, reply) {
+  logger.info(COMPONENT, 'Replying to review', { reviewId });
+  try {
+    const response = await axiosClient.put(`/reviews/${reviewId}/reply`, { reply });
+    logger.info(COMPONENT, 'Reply sent', { reviewId });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to reply to review', { reviewId, error: error.message });
+    throw error;
+  }
+}
+
+export async function getOperatingHours(truckId) {
+  logger.info(COMPONENT, 'Fetching operating hours', { truckId });
+  const response = await axiosClient.get(`/trucks/${truckId}/hours`);
+  return response;
+}
+
+export async function setOperatingHours(truckId, hours) {
+  logger.info(COMPONENT, 'Setting operating hours', { truckId });
+  const response = await axiosClient.put(`/trucks/${truckId}/hours`, hours);
+  return response;
+}
+
+export async function uploadFile(file) {
+  logger.info(COMPONENT, 'Uploading file', { name: file.name, size: file.size });
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await axiosClient.post('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response;
+}

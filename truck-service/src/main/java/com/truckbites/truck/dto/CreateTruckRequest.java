@@ -33,4 +33,10 @@ public class CreateTruckRequest {
 
     @Schema(description = "URL to the truck's profile image", example = "https://example.com/images/taco-express.jpg")
     private String imageUrl;
+
+    @Schema(description = "Estimated prep time in minutes", example = "15", defaultValue = "15")
+    private Integer estimatedPrepTimeMinutes;
+
+    @Schema(description = "Owner user ID (admin-only override, ignored for VENDOR requests)", example = "2")
+    private Long ownerId;
 }

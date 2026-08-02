@@ -1,8 +1,11 @@
 package com.truckbites.payment.controller;
 
 import com.truckbites.payment.dto.PaymentRequest;
+import com.truckbites.payment.dto.CreatePaymentIntentRequest;
+import com.truckbites.payment.dto.PaymentIntentResponse;
 import com.truckbites.payment.dto.PaymentResponse;
 import com.truckbites.payment.service.PaymentService;
+import com.truckbites.payment.service.StripePaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -38,6 +41,7 @@ import java.util.List;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final StripePaymentService stripePaymentService;
 
     /**
      * Process a payment for an order.
@@ -62,6 +66,34 @@ public class PaymentController {
         log.info("POST /api/payments -> processPayment for orderId={}", request.getOrderId());
         PaymentResponse response = paymentService.processPayment(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Create a Stripe PaymentIntent for an order.
+     */
+    @PostMapping("/create-intent")
+    @Operation(
+            summary = "Create Stripe PaymentIntent",
+            description = "Creates a Stripe PaymentIntent for the given order and amount. " +
+                    "Returns a client secret that the frontend uses to complete payment via Stripe.js. " +
+                    "If Stripe is not configured, returns a mock client secret for testing.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PaymentIntent created",
+                    content = @Content(schema = @Schema(implementation = PaymentIntentResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request")
+    })
+    public ResponseEntity<PaymentIntentResponse> createPaymentIntent(
+            @Valid @RequestBody CreatePaymentIntentRequest request) {
+        log.info("Create payment intent for orderId={}, amount={}", request.getOrderId(), request.getAmount());
+        StripePaymentService.StripePaymentResult result = stripePaymentService.createPaymentIntent(
+                request.getAmount(), request.getCurrency(), request.getOrderId());
+        return ResponseEntity.ok(PaymentIntentResponse.builder()
+                .clientSecret(result.clientSecret())
+                .paymentIntentId(result.paymentIntentId())
+                .status(result.status())
+                .build());
     }
 
     /**

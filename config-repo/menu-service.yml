@@ -7,5 +7,14 @@ spring:
       circuitbreaker:
         enabled: true
 
+# Feign circuit breaker tuning: the default 1s TimeLimiter is too tight for
+# cold-start JVM calls, causing transient 503s right after startup. Give
+# calls more headroom while keeping circuit-breaking enabled.
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
+
 jwt:
-  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970337336763979244226452948404D635166546A576E5A7234753778214125442A47
+  secret: ${JWT_SECRET}

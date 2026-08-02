@@ -1,0 +1,31 @@
+# ============================================================================
+# Root .dockerignore - build context for most services is the repo root, so
+# exclude everything that should not be shipped to the Docker daemon.
+# ============================================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Maven build outputs
+**/target/
+
+# Node / frontend
+truckbites-frontend/node_modules
+truckbites-frontend/dist
+
+# IDE / OS
+.idea
+.vscode
+*.iml
+.DS_Store
+Thumbs.db
+
+# Env / secrets - never ship real secrets into an image build context
+**/.env
+**/.env.*
+!.env.example
+
+# Logs / misc
+*.log

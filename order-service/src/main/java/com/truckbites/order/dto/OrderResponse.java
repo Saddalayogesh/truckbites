@@ -34,6 +34,9 @@ public class OrderResponse {
     @Schema(description = "Total order amount", example = "7.98")
     private BigDecimal totalAmount;
 
+    @Schema(description = "Special instructions for this order", example = "No onions, extra cheese")
+    private String notes;
+
     @Schema(description = "Current order status", example = "PLACED",
             allowableValues = {"PLACED", "PREPARING", "READY", "COMPLETED", "CANCELLED"})
     private OrderStatus status;

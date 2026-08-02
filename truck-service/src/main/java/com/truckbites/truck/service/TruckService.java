@@ -29,6 +29,8 @@ public class TruckService {
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .imageUrl(request.getImageUrl())
+                .estimatedPrepTimeMinutes(request.getEstimatedPrepTimeMinutes() != null
+                        ? request.getEstimatedPrepTimeMinutes() : 15)
                 .ownerId(ownerId)
                 .status(TruckStatus.CLOSED)
                 .build();
@@ -50,6 +52,8 @@ public class TruckService {
         truck.setLatitude(request.getLatitude());
         truck.setLongitude(request.getLongitude());
         truck.setImageUrl(request.getImageUrl());
+        truck.setEstimatedPrepTimeMinutes(request.getEstimatedPrepTimeMinutes() != null
+                ? request.getEstimatedPrepTimeMinutes() : 15);
         Truck saved = truckRepository.save(truck);
         log.info("Truck updated: id={}", id);
         return saved;

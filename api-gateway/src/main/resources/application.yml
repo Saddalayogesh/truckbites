@@ -10,7 +10,8 @@ spring:
         cors-configurations:
           '[/**]':
             allowed-origin-patterns:
-              - "*"
+              - "http://localhost:517*"
+              - "http://localhost:3000"
             allowed-methods:
               - GET
               - POST
@@ -34,7 +35,7 @@ spring:
         - id: truck-service
           uri: lb://truck-service
           predicates:
-            - Path=/api/trucks/**
+            - Path=/api/trucks/**,/api/favorites/**,/api/reviews/**
         - id: menu-service
           uri: lb://menu-service
           predicates:

@@ -33,6 +33,9 @@ public class ReviewResponse {
     @Schema(description = "Optional review comment", example = "Great tacos! Highly recommend.")
     private String comment;
 
+    @Schema(description = "Vendor reply to the review")
+    private String vendorReply;
+
     @Schema(description = "Timestamp when the review was created", example = "2026-07-27T10:30:00")
     private LocalDateTime createdAt;
 }
