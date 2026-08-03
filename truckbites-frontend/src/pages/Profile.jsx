@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Heart, ShoppingCart, KeyRound, MapPin, Phone } from 'lucide-react';
+import { ClipboardList, Heart, ShoppingCart, KeyRound, MapPin, Phone, Crown, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getProfile, updateProfile } from '../api/userApi';
+import { getProfile, updateProfile, getMembership, getVendorPlan } from '../api/userApi';
+import { membershipByTier, vendorPlanByPlan, formatINR } from '../utils/pricing';
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -15,6 +16,8 @@ export default function Profile() {
   const [error, setError] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ phone: '', address: '', profileImageUrl: '' });
+  const [membership, setMembership] = useState(null);
+  const [vendorPlan, setVendorPlan] = useState(null);
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -34,6 +37,20 @@ export default function Profile() {
   }, [user]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    getMembership(user.id)
+      .then((res) => { if (!cancelled) setMembership(res.data); })
+      .catch(() => {});
+    if (user.role === 'VENDOR') {
+      getVendorPlan(user.id)
+        .then((res) => { if (!cancelled) setVendorPlan(res.data); })
+        .catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, [user]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -128,6 +145,70 @@ export default function Profile() {
           )}
         </div>
       </div>
+
+      {/* Membership card */}
+      {membership && (
+        <div className="card p-6 mt-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <span className="h-12 w-12 rounded-full bg-accent/15 text-accentDark flex items-center justify-center text-2xl">
+              {membershipByTier(membership.tier).emoji}
+            </span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Crown className="h-4 w-4 text-accentDark" strokeWidth={2} />
+                <h3 className="font-heading font-semibold text-ink">
+                  {membership.displayName} Membership
+                </h3>
+                {membership.active && membership.expiresAt && (
+                  <span className="badge bg-success/15 text-success">
+                    Active · {new Date(membership.expiresAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-body mt-1">
+                Platform fee {formatINR(membership.platformFeePerOrder)}/order ·
+                {membership.discountPercent}% discount ·
+                {membership.freeCouponsPerMonth} free coupon{membership.freeCouponsPerMonth !== 1 ? 's' : ''}/month
+                {membership.priorityProcessing ? ' · Priority processing' : ''}
+              </p>
+            </div>
+            <Link to="/pricing" className="btn btn-secondary btn-sm shrink-0">
+              {membership.active ? 'Manage / Upgrade' : 'Subscribe'}
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Vendor plan card */}
+      {vendorPlan && (
+        <div className="card p-6 mt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <span className="h-12 w-12 rounded-full bg-primary/10 text-primary flex items-center justify-center text-2xl">
+              {vendorPlanByPlan(vendorPlan.plan).emoji}
+            </span>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Zap className="h-4 w-4 text-primary" strokeWidth={2} />
+                <h3 className="font-heading font-semibold text-ink">
+                  {vendorPlan.displayName} Vendor Plan
+                </h3>
+                {vendorPlan.active && vendorPlan.expiresAt && (
+                  <span className="badge bg-success/15 text-success">
+                    Active · {new Date(vendorPlan.expiresAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-body mt-1">
+                {vendorPlan.commissionPercent}% order commission · {vendorPlan.benefits}
+              </p>
+            </div>
+            <Link to="/pricing" className="btn btn-secondary btn-sm shrink-0">
+              {vendorPlan.active ? 'Manage Plan' : 'Upgrade Plan'}
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Link to="/order-history" className="card card-hover p-4 text-center group"><ClipboardList className="h-7 w-7 mx-auto text-primary group-hover:scale-110 transition-transform" strokeWidth={1.7} /><span className="text-xs text-body mt-1 block">Order History</span></Link>
         <Link to="/favorites" className="card card-hover p-4 text-center group"><Heart className="h-7 w-7 mx-auto text-accentDark fill-current group-hover:scale-110 transition-transform" strokeWidth={0} /><span className="text-xs text-body mt-1 block">Favorites</span></Link>

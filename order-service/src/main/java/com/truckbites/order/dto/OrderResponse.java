@@ -31,8 +31,33 @@ public class OrderResponse {
     @Schema(description = "ID of the food truck fulfilling the order", example = "1")
     private Long truckId;
 
-    @Schema(description = "Total order amount", example = "7.98")
+    @Schema(description = "Display name of the food truck fulfilling the order", example = "Biryani Wheels")
+    private String truckName;
+
+    @Schema(description = "Total order amount (subtotal - discount + platform fee + GST)", example = "7.98")
     private BigDecimal totalAmount;
+
+    @Schema(description = "Food subtotal before fees and taxes", example = "7.50")
+    private BigDecimal subtotalAmount;
+
+    @Schema(description = "Member discount applied to the subtotal", example = "0.38")
+    private BigDecimal discountAmount;
+
+    @Schema(description = "Platform fee charged for this order", example = "5.00")
+    private BigDecimal platformFee;
+
+    @Schema(description = "GST payable on this order (5% food + 18% platform fee)", example = "1.27")
+    private BigDecimal gstAmount;
+
+    @Schema(description = "Platform commission on this order (based on vendor plan)", example = "0.60")
+    private BigDecimal commissionAmount;
+
+    @Schema(description = "Membership tier used for pricing", example = "GOLD",
+            allowableValues = {"NONE", "SILVER", "GOLD", "PLATINUM"})
+    private String membershipTier;
+
+    @Schema(description = "Whether this order receives priority processing", example = "true")
+    private Boolean priority;
 
     @Schema(description = "Special instructions for this order", example = "No onions, extra cheese")
     private String notes;

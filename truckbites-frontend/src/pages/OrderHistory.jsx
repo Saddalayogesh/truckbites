@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getMyOrders } from '../api/orderApi';
-import { addReview } from '../api/truckApi';
+import { addReview, getTruckById } from '../api/truckApi';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../components/Toast';
 import { useCart } from '../context/CartContext';
-import { TriangleAlert, Package, RotateCcw, Star, Check } from 'lucide-react';
+import { TriangleAlert, Package, RotateCcw, Star, Check, Truck } from 'lucide-react';
 import logger from '../utils/logger';
 
 var COMPONENT = 'OrderHistory';
@@ -47,6 +47,7 @@ export default function OrderHistory() {
   var _f = useState(5), reviewRating = _f[0], setReviewRating = _f[1];
   var _g = useState(''), reviewComment = _g[0], setReviewComment = _g[1];
   var _h = useState(false), submittingReview = _h[0], setSubmittingReview = _h[1];
+  var _i = useState({}), truckNames = _i[0], setTruckNames = _i[1];
   var addToast = useToast().addToast;
   var addItem = useCart().addItem;
 
@@ -56,6 +57,27 @@ export default function OrderHistory() {
     getMyOrders()
       .then(function(res) {
         setOrders(res.data || []);
+        // Start with names provided by the API, then fetch any missing ones
+        var truckNameMap = {};
+        (res.data || []).forEach(function(o) { if (o.truckName) truckNameMap[o.truckId] = o.truckName; });
+        var truckIdList = [...new Set((res.data || []).map(function(o) { return o.truckId; }).filter(function(id) { return id != null && !truckNameMap[id]; }))];
+        if (truckIdList.length > 0) {
+          Promise.all(truckIdList.map(function(truckId) {
+            return getTruckById(truckId)
+              .then(function(r) {
+                var truck = r && r.data;
+                // Defensive: support both { id, name, ... } and { data: { name } } shapes
+                var name = (truck && truck.name) || (truck && truck.data && truck.data.name) || null;
+                return { id: truckId, name: name };
+              })
+              .catch(function() { return { id: truckId, name: null }; });
+          })).then(function(results) {
+            results.forEach(function(entry) { if (entry.name) truckNameMap[entry.id] = entry.name; });
+            setTruckNames(truckNameMap);
+          });
+        } else {
+          setTruckNames(truckNameMap);
+        }
       })
       .catch(function(err) {
         logger.error(COMPONENT, 'Failed to fetch orders', { error: err.message });
@@ -74,17 +96,19 @@ export default function OrderHistory() {
       return;
     }
     var count = 0;
+    var truckName = order.truckName || truckNames[order.truckId] || null;
     order.items.forEach(function(item) {
       addItem(
         { id: item.menuItemId, name: item.itemName, price: item.price },
         order.truckId,
-        item.quantity
+        item.quantity,
+        truckName
       );
       count += item.quantity;
     });
     addToast('Added ' + count + ' item' + (count !== 1 ? 's' : '') + ' to your cart!', 'success');
     logger.info(COMPONENT, 'Re-order initiated', { orderId: order.id, itemCount: count });
-  }, [addItem, addToast]);
+  }, [addItem, addToast, truckNames]);
 
   /** Submit review for a completed order */
   var handleSubmitReview = useCallback(function() {
@@ -183,6 +207,13 @@ export default function OrderHistory() {
                           </span>
                         </div>
                         <p className="text-sm text-body mt-1">{formatDate(order.createdAt)}</p>
+                        <Link
+                          to={'/trucks/' + order.truckId + '/menu'}
+                          className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary-dark mt-1.5 transition-colors"
+                        >
+                          <Truck className="w-4 h-4" strokeWidth={2} />
+                          {order.truckName || truckNames[order.truckId] || ('Truck #' + order.truckId)}
+                        </Link>
                       </div>
                       <div className="text-right">
                         <p className="font-heading font-bold text-primary text-lg">{formatPrice(order.totalAmount)}</p>

@@ -243,6 +243,32 @@ public class TruckController {
         return ResponseEntity.ok(truckService.toggleStatus(id, ownerId));
     }
 
+    @PostMapping("/{id}/feature")
+    @Operation(
+            summary = "Feature a truck (VENDOR)",
+            description = "Promotes the truck as featured for 7, 15 or 30 days so it appears " +
+                    "at the top of search results and trending lists. " +
+                    "The authenticated vendor must own the truck. " +
+                    "Pricing: 7 days - 299, 15 days - 499, 30 days - 799.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Truck featured successfully",
+                    content = @Content(schema = @Schema(implementation = Truck.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid promotion duration"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
+            @ApiResponse(responseCode = "404", description = "Truck not found")
+    })
+    public ResponseEntity<Truck> featureTruck(
+            @Parameter(description = "Truck ID", example = "1") @PathVariable Long id,
+            @Parameter(description = "Promotion duration in days", example = "7") @RequestParam Integer days,
+            Authentication authentication) {
+        Long ownerId = extractUserId(authentication);
+        log.info("Feature truck: id={}, days={}, ownerId={}", id, days, ownerId);
+        return ResponseEntity.ok(truckService.featureTruck(id, ownerId, days));
+    }
+
     @DeleteMapping("/{id}")
     @Operation(
             summary = "Delete a truck (VENDOR)",

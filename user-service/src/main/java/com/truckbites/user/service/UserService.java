@@ -1,11 +1,18 @@
 package com.truckbites.user.service;
 
 import com.truckbites.common.exception.ResourceNotFoundException;
+import com.truckbites.user.dto.MembershipResponse;
+import com.truckbites.user.dto.VendorPlanResponse;
+import com.truckbites.user.model.MembershipTier;
 import com.truckbites.user.model.UserProfile;
+import com.truckbites.user.model.VendorPlan;
 import com.truckbites.user.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Slf4j
 
@@ -60,5 +67,118 @@ public class UserService {
         UserProfile saved = userProfileRepository.save(profile);
         log.info("Profile updated for userId: {}", userId);
         return saved;
+    }
+
+    /**
+     * Returns the customer's membership status and benefits.
+     * Degrades gracefully to NONE (non-member) when no profile exists.
+     */
+    public MembershipResponse getMembership(Long userId) {
+        log.debug("Fetching membership for userId: {}", userId);
+        UserProfile profile = getOrCreateProfile(userId);
+        return toMembershipResponse(profile);
+    }
+
+    /**
+     * Activates (or upgrades) a membership tier for one month.
+     * Renewing an already-active tier extends from the current expiry date.
+     */
+    @Transactional
+    public MembershipResponse subscribeMembership(Long userId, MembershipTier tier) {
+        log.info("Subscribing userId={} to membership tier {}", userId, tier);
+        UserProfile profile = getOrCreateProfile(userId);
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime base = (profile.getMembershipTier() == tier
+                && profile.getMembershipExpiresAt() != null
+                && profile.getMembershipExpiresAt().isAfter(now))
+                ? profile.getMembershipExpiresAt()
+                : now;
+
+        profile.setMembershipTier(tier);
+        profile.setMembershipExpiresAt(base.plusMonths(1));
+        profile.setMembershipCouponsRemaining(tier.getFreeCouponsPerMonth());
+        UserProfile saved = userProfileRepository.save(profile);
+        log.info("Membership activated for userId={}: tier={}, expires={}",
+                userId, tier, saved.getMembershipExpiresAt());
+        return toMembershipResponse(saved);
+    }
+
+    /**
+     * Returns the vendor's subscription plan and commission rate.
+     * Degrades gracefully to FREE when no profile exists.
+     */
+    public VendorPlanResponse getVendorPlan(Long userId) {
+        log.debug("Fetching vendor plan for userId: {}", userId);
+        UserProfile profile = getOrCreateProfile(userId);
+        return toVendorPlanResponse(profile);
+    }
+
+    /**
+     * Activates (or upgrades) a vendor subscription plan for one month.
+     * Renewing an already-active plan extends from the current expiry date.
+     */
+    @Transactional
+    public VendorPlanResponse subscribeVendorPlan(Long userId, VendorPlan plan) {
+        log.info("Subscribing userId={} to vendor plan {}", userId, plan);
+        UserProfile profile = getOrCreateProfile(userId);
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime base = (profile.getVendorPlan() == plan
+                && profile.getVendorPlanExpiresAt() != null
+                && profile.getVendorPlanExpiresAt().isAfter(now))
+                ? profile.getVendorPlanExpiresAt()
+                : now;
+
+        profile.setVendorPlan(plan);
+        profile.setVendorPlanExpiresAt(base.plusMonths(1));
+        UserProfile saved = userProfileRepository.save(profile);
+        log.info("Vendor plan activated for userId={}: plan={}, expires={}",
+                userId, plan, saved.getVendorPlanExpiresAt());
+        return toVendorPlanResponse(saved);
+    }
+
+    private UserProfile getOrCreateProfile(Long userId) {
+        return userProfileRepository.findByUserId(userId)
+                .orElseGet(() -> createProfile(userId));
+    }
+
+    private MembershipResponse toMembershipResponse(UserProfile profile) {
+        MembershipTier tier = profile.getMembershipTier() != null ? profile.getMembershipTier() : MembershipTier.NONE;
+        LocalDateTime expiresAt = profile.getMembershipExpiresAt();
+        boolean active = expiresAt != null && expiresAt.isAfter(LocalDateTime.now());
+        if (!active) {
+            tier = MembershipTier.NONE;
+        }
+        return MembershipResponse.builder()
+                .tier(tier.name())
+                .displayName(tier.getDisplayName())
+                .active(active)
+                .monthlyPrice(tier.getMonthlyPrice())
+                .platformFeePerOrder(tier.getPlatformFeePerOrder())
+                .discountPercent(tier.getDiscountPercent())
+                .freeCouponsPerMonth(tier.getFreeCouponsPerMonth())
+                .couponsRemaining(active ? profile.getMembershipCouponsRemaining() : 0)
+                .priorityProcessing(tier.isPriorityProcessing())
+                .expiresAt(active ? expiresAt : null)
+                .build();
+    }
+
+    private VendorPlanResponse toVendorPlanResponse(UserProfile profile) {
+        VendorPlan plan = profile.getVendorPlan() != null ? profile.getVendorPlan() : VendorPlan.FREE;
+        LocalDateTime expiresAt = profile.getVendorPlanExpiresAt();
+        boolean active = expiresAt != null && expiresAt.isAfter(LocalDateTime.now());
+        if (!active) {
+            plan = VendorPlan.FREE;
+        }
+        return VendorPlanResponse.builder()
+                .plan(plan.name())
+                .displayName(plan.getDisplayName())
+                .active(active)
+                .monthlyPrice(plan.getMonthlyPrice())
+                .commissionPercent(plan.getCommissionPercent())
+                .benefits(plan.getBenefits())
+                .expiresAt(active ? expiresAt : null)
+                .build();
     }
 }

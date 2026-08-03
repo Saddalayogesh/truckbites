@@ -32,6 +32,10 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .securityMatcher("/api/**")
                 .authorizeHttpRequests(auth -> auth
+                        // Public reads: membership/vendor-plan lookups are consumed by
+                        // other services via Feign (no JWT propagated) and by the UI.
+                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                "/api/users/membership", "/api/users/vendor-plan").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtValidationFilter, UsernamePasswordAuthenticationFilter.class);

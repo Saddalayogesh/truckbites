@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Pencil } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { createOrder } from '../api/orderApi';
 import { processPayment } from '../api/paymentApi';
+import { getMembership } from '../api/userApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import logger from '../utils/logger';
+import { NON_MEMBER, formatINR, estimateCartPricing } from '../utils/pricing';
 
 const COMPONENT = 'Checkout';
 
@@ -27,12 +29,30 @@ export default function Checkout() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const { user } = useAuth();
-  const { items, itemsByTruck, total, itemCount, truckIds, clearCart } = useCart();
+  const { items, itemsByTruck, itemCount, truckIds, clearCart } = useCart();
 
   const [paymentMethod, setPaymentMethod] = useState('CARD');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [membership, setMembership] = useState(NON_MEMBER);
+
+  // Load the customer's membership tier for the price breakdown
+  useEffect(() => {
+    let cancelled = false;
+    if (user?.id) {
+      getMembership(user.id)
+        .then((res) => { if (!cancelled && res.data) setMembership(res.data); })
+        .catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Fee/GST are charged per order (per truck), so estimate per truck and sum
+  const pricing = useMemo(
+    () => estimateCartPricing(truckIds, itemsByTruck, membership),
+    [truckIds, itemsByTruck, membership]
+  );
 
   // Redirect to cart if empty
   useEffect(() => {
@@ -221,24 +241,37 @@ export default function Checkout() {
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-body">
                 <span>Items ({itemCount})</span>
-                <span>{formatPrice(total)}</span>
+                <span>{formatPrice(pricing.subtotal)}</span>
+              </div>
+              {pricing.discount > 0 && (
+                <div className="flex justify-between text-body">
+                  <span>Member Discount ({membership.discountPercent || 0}%)</span>
+                  <span className="text-success font-medium">−{formatINR(pricing.discount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-body">
+                <span>Platform Fee</span>
+                <span>{formatINR(pricing.platformFee)}</span>
+              </div>
+              <div className="flex justify-between text-body">
+                <span>GST</span>
+                <span>{formatINR(pricing.gst)}</span>
               </div>
               <div className="flex justify-between text-body">
                 <span>Delivery Fee</span>
                 <span className="text-success font-medium">Free</span>
               </div>
-              <div className="flex justify-between text-body">
-                <span>Tax</span>
-                <span className="text-success font-medium">Included</span>
-              </div>
             </div>
 
-            <div className="border-t border-line pt-4 mb-6">
+            <div className="border-t border-line pt-4 mb-2">
               <div className="flex justify-between text-lg font-heading font-bold text-ink">
                 <span>Total</span>
-                <span className="text-primary">{formatPrice(total)}</span>
+                <span className="text-primary">{formatPrice(pricing.total)}</span>
               </div>
             </div>
+            <p className="text-[11px] text-body/60 mb-4">
+              Platform fee & GST charged in INR (₹) per order.
+            </p>
 
             {error && (
               <div className="bg-error/10 border border-error/30 text-error rounded-input p-4 mb-4 text-sm">

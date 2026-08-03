@@ -5,39 +5,6 @@ import { searchTrucks } from '../api/truckApi';
 import TruckCard from '../components/TruckCard';
 import { TruckCardSkeleton } from '../components/Skeleton';
 
-const CUISINE_OPTIONS = [
-  'All',
-  'Hyderabadi',
-  'North Indian',
-  'South Indian',
-  'Mumbai Street Food',
-  'Rolls & Kathi',
-  'Chinese',
-  'Japanese',
-  'Korean',
-  'Persian',
-  'Arabic',
-  'Indo-Chinese',
-  'Burgers',
-  'Mexican',
-  'Italian',
-  'Tibetan',
-  'Mughlai',
-  'American',
-  'Asian',
-  'Indian',
-  'Mediterranean',
-  'BBQ',
-  'Dessert',
-  'Desserts',
-  'Seafood',
-  'Thai',
-  'Vietnamese',
-  'Middle Eastern',
-  'Latin American',
-  'Other',
-];
-
 const SORT_OPTIONS = [
   { value: 'default', label: 'Default' },
   { value: 'rating', label: 'Highest Rated' },
@@ -65,12 +32,11 @@ export default function TruckDiscovery() {
   const initialCuisine = searchParams.get('cuisineType') ?? '';
 
   const [trucks, setTrucks] = useState([]);
+  const [allTrucks, setAllTrucks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('query') ?? '');
-  const [cuisineFilter, setCuisineFilter] = useState(
-    CUISINE_OPTIONS.includes(initialCuisine) ? initialCuisine : 'All'
-  );
+  const [cuisineFilter, setCuisineFilter] = useState(initialCuisine || 'All');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('default');
   const [location, setLocation] = useState(null); // { lat, lng }
@@ -105,6 +71,26 @@ export default function TruckDiscovery() {
     setLocation(null);
     setLocationError('');
   };
+
+  // Load every truck once so the cuisine filter only lists cuisines that
+  // actually exist on the platform (independent of the active filter).
+  useEffect(() => {
+    let cancelled = false;
+    searchTrucks({})
+      .then((res) => { if (!cancelled) setAllTrucks(res.data || []); })
+      .catch(() => { /* keep list empty; filter will only offer 'All' */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Unique cuisines present on the platform, sorted A-Z.
+  const cuisineOptions = useMemo(() => {
+    const cuisines = new Set();
+    allTrucks.forEach((t) => { if (t.cuisineType) cuisines.add(t.cuisineType); });
+    // Keep the currently selected cuisine visible even if no truck has it yet
+    // (e.g. arriving via a stale URL filter).
+    if (cuisineFilter !== 'All') cuisines.add(cuisineFilter);
+    return ['All', ...[...cuisines].sort((a, b) => a.localeCompare(b))];
+  }, [allTrucks, cuisineFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -208,7 +194,7 @@ export default function TruckDiscovery() {
               onChange={(e) => setCuisineFilter(e.target.value)}
               className="select-field"
             >
-              {CUISINE_OPTIONS.map((cuisine) => (
+              {cuisineOptions.map((cuisine) => (
                 <option key={cuisine} value={cuisine}>
                   {cuisine === 'All' ? 'All Cuisines' : cuisine}
                 </option>

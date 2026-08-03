@@ -116,6 +116,7 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-6">
             <NavLink to="/" active={isActive('/')}>Home</NavLink>
             <NavLink to="/discover" active={isActive('/discover')}>Discover</NavLink>
+            <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
             {sectionLink('Categories', 'categories')}
             {sectionLink('Map', 'map')}
             <NavLink to="/orders" active={isActive('/orders')}>Orders</NavLink>
@@ -210,6 +211,7 @@ export default function Navbar() {
           <div className="container-app py-4 flex flex-col gap-1">
             <NavLink to="/" active={isActive('/')}>Home</NavLink>
             <NavLink to="/discover" active={isActive('/discover')}>Discover</NavLink>
+            <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
             <button onClick={() => goToSection('categories')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors py-2">Categories</button>
             <button onClick={() => goToSection('map')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors py-2">Map</button>
 

@@ -17,7 +17,7 @@ export function CartProvider({ children }) {
 
   /** Add an item or increment quantity if already in cart (by menuItemId + truckId) */
   const addItem = useCallback(
-    (menuItem, truckId, quantity = 1) => {
+    (menuItem, truckId, quantity = 1, truckName) => {
       setItems((prev) => {
         const existingIndex = prev.findIndex(
           (i) => i.menuItemId === menuItem.id && i.truckId === truckId
@@ -29,6 +29,8 @@ export function CartProvider({ children }) {
           newItems[existingIndex] = {
             ...newItems[existingIndex],
             quantity: newItems[existingIndex].quantity + quantity,
+            // Backfill the truck name on legacy cart entries that lack it
+            ...(truckName && !newItems[existingIndex].truckName ? { truckName } : {}),
           };
         } else {
           newItems = [
@@ -37,6 +39,7 @@ export function CartProvider({ children }) {
               cartItemId: `${truckId}-${menuItem.id}-${Date.now()}`,
               menuItemId: menuItem.id,
               truckId,
+              truckName,
               name: menuItem.name,
               price: menuItem.price,
               quantity,
