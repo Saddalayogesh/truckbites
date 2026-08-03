@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Truck } from 'lucide-react';
 import { getMyTrucks } from '../api/truckApi';
 import { getDailySales, getTopSellingItems, getOrderSummary } from '../api/analyticsApi';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -153,14 +154,17 @@ export default function VendorAnalytics() {
 
   return (
     <div className="min-h-[80vh]">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Vendor Analytics</h1>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
+        <div>
+          <span className="section-eyebrow">Performance</span>
+          <h1 className="text-2xl sm:text-3xl font-heading font-bold text-ink mt-1">Vendor Analytics</h1>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
           {selectedTruck && (
             <>
               <button
                 onClick={handleDownloadCSV}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm"
+                className="btn btn-secondary btn-sm"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -169,7 +173,7 @@ export default function VendorAnalytics() {
               </button>
               <button
                 onClick={() => window.print()}
-                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium shadow-sm"
+                className="btn btn-secondary btn-sm"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -182,7 +186,7 @@ export default function VendorAnalytics() {
             <select
               value={selectedTruckId || ''}
               onChange={function(e) { setSelectedTruckId(parseInt(e.target.value)); }}
-              className="w-full sm:w-56 py-2.5 px-3 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-500 outline-none"
+              className="select-field sm:w-56"
             >
               {trucks.map(function(t) { return <option key={t.id} value={t.id}>{t.name}</option>; })}
             </select>
@@ -193,68 +197,68 @@ export default function VendorAnalytics() {
       {loading ? (
         <LoadingSpinner size="lg" className="py-20" text="Loading analytics..." />
       ) : !selectedTruck ? (
-        <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
-          <span className="text-5xl">{'🚚'}</span>
-          <p className="text-gray-500 mt-4">You don't have any food trucks yet.</p>
+        <div className="card p-16 text-center">
+          <Truck className="w-14 h-14 text-primary/30 mx-auto" />
+          <p className="text-body mt-4">You don't have any food trucks yet.</p>
         </div>
       ) : (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-5 shadow-sm">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Total Revenue</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-800 mt-1">${totalRevenue.toFixed(2)}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <div className="card p-4 sm:p-6">
+              <p className="text-xs sm:text-sm text-body font-medium">Total Revenue</p>
+              <p className="text-xl sm:text-2xl font-heading font-bold text-ink mt-1">${totalRevenue.toFixed(2)}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-5 shadow-sm">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Total Orders</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-800 mt-1">{totalOrders}</p>
+            <div className="card p-4 sm:p-6">
+              <p className="text-xs sm:text-sm text-body font-medium">Total Orders</p>
+              <p className="text-xl sm:text-2xl font-heading font-bold text-ink mt-1">{totalOrders}</p>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-5 shadow-sm">
-              <p className="text-xs sm:text-sm text-gray-500 font-medium">Completed</p>
-              <p className="text-xl sm:text-2xl font-bold text-green-600 mt-1">{completedOrders}</p>
+            <div className="card p-4 sm:p-6">
+              <p className="text-xs sm:text-sm text-body font-medium">Completed</p>
+              <p className="text-xl sm:text-2xl font-heading font-bold text-success mt-1">{completedOrders}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 shadow-sm">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Daily Sales (Last 7 Days)</h2>
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-heading font-semibold text-ink mb-4">Daily Sales (Last 7 Days)</h2>
               {salesLoading ? (
                 <LoadingSpinner size="md" className="py-12" />
               ) : chartData.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 text-sm">No sales data yet</div>
+                <div className="text-center py-12 text-body/60 text-sm">No sales data yet</div>
               ) : (
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9CA3AF" />
-                    <YAxis tick={{ fontSize: 12 }} stroke="#9CA3AF" tickFormatter={(v) => '$' + v} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E9E4DA" />
+                    <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#D9B08C" />
+                    <YAxis tick={{ fontSize: 12 }} stroke="#D9B08C" tickFormatter={(v) => '$' + v} />
                     <Tooltip
-                      contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #E9E4DA', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}
                       formatter={(value) => ['$' + Number(value).toFixed(2), 'Sales']}
                     />
-                    <Line type="monotone" dataKey="sales" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#f97316' }} />
+                    <Line type="monotone" dataKey="sales" stroke="#B85C38" strokeWidth={2.5} dot={{ fill: '#B85C38', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#C9A46A' }} />
                   </LineChart>
                 </ResponsiveContainer>
               )}
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 shadow-sm">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Top Selling Items</h2>
+            <div className="card p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-heading font-semibold text-ink mb-4">Top Selling Items</h2>
               {itemsLoading ? (
                 <LoadingSpinner size="md" className="py-12" />
               ) : barData.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 text-sm">No items sold yet</div>
+                <div className="text-center py-12 text-body/60 text-sm">No items sold yet</div>
               ) : (
                 <ResponsiveContainer width="100%" height={250}>
                   <BarChart data={barData} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
-                    <XAxis type="number" tick={{ fontSize: 12 }} stroke="#9CA3AF" />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="#9CA3AF" width={120} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E9E4DA" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 12 }} stroke="#D9B08C" />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="#D9B08C" width={120} />
                     <Tooltip
-                      contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                      contentStyle={{ borderRadius: '12px', border: '1px solid #E9E4DA', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}
                       formatter={(value, name) => [value, name === 'quantity' ? 'Qty Sold' : 'Revenue']}
                     />
-                    <Bar dataKey="quantity" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} />
+                    <Bar dataKey="quantity" fill="#D9B08C" radius={[0, 6, 6, 0]} barSize={20} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -262,22 +266,22 @@ export default function VendorAnalytics() {
           </div>
 
           {orderSummary.length > 0 && (
-            <div className="mt-6 bg-white rounded-xl border border-gray-100 p-4 sm:p-6 shadow-sm">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Order Status Summary</h2>
+            <div className="mt-6 card p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-heading font-semibold text-ink mb-4">Order Status Summary</h2>
               <div className="flex flex-wrap gap-3 sm:gap-4">
                 {orderSummary.map(function(s) {
                   return (
-                    <div key={s.status} className="flex items-center gap-2 sm:gap-3 bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 rounded-lg">
-                      <span className={'px-2 py-0.5 rounded-full text-xs font-medium ' + (
-                        s.status === 'PLACED' ? 'bg-blue-100 text-blue-700' :
-                        s.status === 'PREPARING' ? 'bg-yellow-100 text-yellow-700' :
-                        s.status === 'READY' ? 'bg-green-100 text-green-700' :
-                        s.status === 'COMPLETED' ? 'bg-gray-100 text-gray-600' :
-                        'bg-red-100 text-red-700'
+                    <div key={s.status} className="flex items-center gap-2 sm:gap-3 bg-cream px-3 sm:px-4 py-2 sm:py-3 rounded-input">
+                      <span className={'badge ' + (
+                        s.status === 'PLACED' ? 'bg-primary/10 text-primary' :
+                        s.status === 'PREPARING' ? 'bg-warning/15 text-warning' :
+                        s.status === 'READY' ? 'bg-success/15 text-success' :
+                        s.status === 'COMPLETED' ? 'bg-line/60 text-body' :
+                        'bg-error/15 text-error'
                       )}>
                         {s.status}
                       </span>
-                      <span className="font-semibold text-gray-800">{s.count}</span>
+                      <span className="font-heading font-semibold text-ink">{s.count}</span>
                     </div>
                   );
                 })}

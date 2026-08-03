@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { Search, AlertTriangle, Utensils } from 'lucide-react';
 import { getTruckById } from '../api/truckApi';
 import { getMenuByTruck } from '../api/menuApi';
 import MenuItemCard from '../components/MenuItemCard';
+import { MenuItemSkeleton } from '../components/Skeleton';
 
 export default function TruckMenu() {
   const { id } = useParams();
@@ -46,10 +48,14 @@ export default function TruckMenu() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-full border-4 border-gray-200" />
-          <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-orange-500 border-t-transparent animate-spin" />
+      <div className="min-h-[80vh]">
+        <div className="skeleton h-40 rounded-card" />
+        <div className="mt-8 mb-6 space-y-3">
+          <div className="skeleton-text h-7 w-56" />
+          <div className="skeleton-text h-4 w-72 max-w-full" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[0, 1, 2, 3, 4, 5].map((i) => <MenuItemSkeleton key={i} />)}
         </div>
       </div>
     );
@@ -57,18 +63,22 @@ export default function TruckMenu() {
 
   if (error) {
     return (
-      <div className="text-center py-20">
-        <span className="text-5xl">⚠️</span>
-        <p className="text-gray-600 mt-4 text-lg">{error}</p>
+      <div className="card p-16 text-center">
+        <span className="w-16 h-16 rounded-full bg-warning/15 text-warning flex items-center justify-center mx-auto">
+          <AlertTriangle className="h-8 w-8" strokeWidth={1.6} />
+        </span>
+        <p className="text-body mt-4 text-lg">{error}</p>
       </div>
     );
   }
 
   if (!truck) {
     return (
-      <div className="text-center py-20">
-        <span className="text-5xl">🔍</span>
-        <p className="text-gray-600 mt-4 text-lg">Truck not found</p>
+      <div className="card p-16 text-center">
+        <span className="w-16 h-16 rounded-full bg-sage/20 text-primary flex items-center justify-center mx-auto">
+          <Search className="h-8 w-8" strokeWidth={1.6} />
+        </span>
+        <p className="text-body mt-4 text-lg">Truck not found</p>
       </div>
     );
   }
@@ -78,31 +88,28 @@ export default function TruckMenu() {
   return (
     <div className="min-h-[80vh]">
       {/* Truck header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-        <div className="h-32 bg-gradient-to-r from-orange-400 to-orange-600 relative">
+      <div className="card p-0 overflow-hidden mb-10">
+        <div className="h-32 bg-gradient-to-r from-primary to-primary-dark relative">
           <div className="absolute top-4 right-4">
             <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide shadow-sm ${
+              className={`px-3 py-1 rounded-full text-xs font-heading font-semibold uppercase tracking-wide shadow-sm ${
                 isOpen
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-300 text-gray-700'
+                  ? 'bg-successDark text-white'
+                  : 'bg-white/85 text-body backdrop-blur'
               }`}
             >
-              {isOpen ? '● Open' : 'Closed'}
+              {isOpen ? 'Open' : 'Closed'}
             </span>
           </div>
         </div>
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-gray-800">{truck.name}</h1>
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-sm font-medium text-orange-500 bg-orange-50 px-3 py-1 rounded-full">
+        <div className="p-7">
+          <h1 className="text-2xl sm:text-3xl font-heading font-bold text-ink">{truck.name}</h1>
+          <div className="flex flex-wrap items-center gap-3 mt-3">
+            <span className="badge badge-sage">
               {truck.cuisineType}
             </span>
             {truck.description && (
-              <span className="text-sm text-gray-400">|</span>
-            )}
-            {truck.description && (
-              <p className="text-sm text-gray-500">{truck.description}</p>
+              <p className="text-sm text-body flex-1 min-w-[200px]">{truck.description}</p>
             )}
           </div>
         </div>
@@ -110,14 +117,16 @@ export default function TruckMenu() {
 
       {/* Menu items section */}
       <div>
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        <h2 className="text-xl font-heading font-semibold text-ink mb-6">
           Menu {menuItems.length > 0 && `(${menuItems.length})`}
         </h2>
 
         {menuItems.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
-            <span className="text-5xl">🍽️</span>
-            <p className="text-gray-500 mt-4 text-lg">
+          <div className="card p-16 text-center">
+            <span className="w-16 h-16 rounded-full bg-sage/20 text-primary flex items-center justify-center mx-auto">
+              <Utensils className="h-8 w-8" strokeWidth={1.6} />
+            </span>
+            <p className="text-body mt-4 text-lg">
               {isOpen
                 ? 'This truck has no menu items yet.'
                 : 'This truck is currently closed.'}
@@ -126,7 +135,7 @@ export default function TruckMenu() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {menuItems.map((item) => (
-              <MenuItemCard key={item.id} item={item} truckId={parseInt(id)} />
+              <MenuItemCard key={item.id} item={item} truckId={parseInt(id)} truck={truck} />
             ))}
           </div>
         )}

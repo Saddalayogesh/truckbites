@@ -1,59 +1,72 @@
-import { createContext, useContext, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useCallback } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import { Check, X, TriangleAlert, Info } from 'lucide-react';
+import 'react-toastify/dist/ReactToastify.css';
 
 const ToastContext = createContext(null);
 
-const ICONS = {
-  success: '\u2705',
-  error: '\u274c',
-  warning: '\u26a0\ufe0f',
-  info: '\u2139\ufe0f',
+// ── Design-system toast variants ──────────────────────────────────────
+const VARIANTS = {
+  success: { icon: Check, color: '#6F8F5B', label: 'Success' },
+  error: { icon: X, color: '#DC2626', label: 'Oops' },
+  warning: { icon: TriangleAlert, color: '#D97706', label: 'Heads up' },
+  info: { icon: Info, color: '#B85C38', label: 'Good to know' },
 };
 
-const COLORS = {
-  success: 'bg-green-600',
-  error: 'bg-red-600',
-  warning: 'bg-yellow-500',
-  info: 'bg-blue-600',
-};
+function ToastBody({ message, type }) {
+  const v = VARIANTS[type] || VARIANTS.info;
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-heading font-bold shrink-0 shadow-sm"
+        style={{ backgroundColor: v.color }}
+      >
+        <v.icon className="w-4 h-4" strokeWidth={2.5} />
+      </span>
+      <div className="min-w-0">
+        <p
+          className="text-[10px] font-heading font-bold uppercase tracking-[0.14em]"
+          style={{ color: v.color }}
+        >
+          {v.label}
+        </p>
+        <p className="text-sm font-medium text-ink leading-snug mt-0.5">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function toastContent(message, type) {
+  return <ToastBody message={message} type={type} />;
+}
 
 export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
-  const idRef = useRef(0);
-
-  const addToast = useCallback((message, type = 'info', duration = 4000) => {
-    const id = ++idRef.current;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
-  }, []);
-
-  const removeToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const addToast = useCallback((message, type = 'info', duration = 3500) => {
+    toast(toastContent(message, type), {
+      type: type === 'info' ? 'default' : type,
+      autoClose: duration,
+      closeOnClick: true,
+      pauseOnHover: true,
+      pauseOnFocusLoss: false,
+      draggable: true,
+      hideProgressBar: false,
+      icon: false,
+      className: '!bg-surface !rounded-input !border !border-line !shadow-card !py-3.5 !px-4 !font-body !cursor-pointer',
+      progressClassName: '!h-1',
+      bodyClassName: '!p-0 !m-0',
+    });
   }, []);
 
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={COLORS[toast.type] + ' text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 cursor-pointer transition-all duration-300 hover:opacity-90'}
-            onClick={() => removeToast(toast.id)}
-            role="alert"
-          >
-            <span className="text-lg flex-shrink-0">{ICONS[toast.type]}</span>
-            <p className="text-sm font-medium flex-1">{toast.message}</p>
-            <button
-              className="text-white/70 hover:text-white text-lg leading-none flex-shrink-0"
-              onClick={(e) => { e.stopPropagation(); removeToast(toast.id); }}
-            >
-              &times;
-            </button>
-          </div>
-        ))}
-      </div>
+      <ToastContainer
+        position="top-right"
+        newestOnTop
+        closeButton={false}
+        limit={5}
+        toastStyle={{ borderRadius: '16px' }}
+      />
     </ToastContext.Provider>
   );
 }

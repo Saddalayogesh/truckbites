@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
+import { BarChart3, Users, Truck, ClipboardList, TrendingUp, ScrollText, Wallet, Trophy, Calendar, Utensils, Search, Star } from 'lucide-react';
 import { getAllTrucksAdmin, createTruck } from '../api/truckApi';
 import { getAllOrdersAdmin } from '../api/orderApi';
 import { getAllUsersAdmin, updateUserRole } from '../api/authApi';
 import MapPicker from '../components/MapPicker';
 
 const TABS = [
-  { id: 'overview', label: 'Overview', icon: '📊' },
-  { id: 'users', label: 'Users', icon: '👥' },
-  { id: 'trucks', label: 'Trucks', icon: '🚚' },
-  { id: 'orders', label: 'Orders', icon: '📋' },
-  { id: 'analytics', label: 'Analytics', icon: '📈' },
-  { id: 'audit', label: 'Audit Log', icon: '📝' },
+  { id: 'overview', label: 'Overview', Icon: BarChart3 },
+  { id: 'users', label: 'Users', Icon: Users },
+  { id: 'trucks', label: 'Trucks', Icon: Truck },
+  { id: 'orders', label: 'Orders', Icon: ClipboardList },
+  { id: 'analytics', label: 'Analytics', Icon: TrendingUp },
+  { id: 'audit', label: 'Audit Log', Icon: ScrollText },
 ];
 
 export default function AdminDashboard() {
@@ -141,20 +142,23 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-[80vh]">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Admin Panel</h1>
+      <div className="mb-6">
+        <span className="section-eyebrow">Platform control</span>
+        <h1 className="text-3xl font-heading font-bold text-ink mt-1">Admin Panel</h1>
+      </div>
 
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 mb-6 bg-cream border border-line p-1 rounded-full w-fit overflow-x-auto">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-heading font-medium transition-all whitespace-nowrap ${
               activeTab === tab.id
-                ? 'bg-white text-orange-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-primary text-white shadow-soft'
+                : 'text-body hover:text-primary'
             }`}
           >
-            <span>{tab.icon}</span> {tab.label}
+            <tab.Icon className="h-4 w-4" strokeWidth={2} /> {tab.label}
           </button>
         ))}
       </div>
@@ -162,51 +166,59 @@ export default function AdminDashboard() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="card p-5">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-xl">💰</div>
+                <div className="w-12 h-12 rounded-input bg-success/15 text-success flex items-center justify-center">
+                  <Wallet className="h-6 w-6" strokeWidth={1.8} />
+                </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Revenue</p>
-                  <p className="text-2xl font-bold text-gray-800 mt-0.5">
+                  <p className="text-xs text-body font-medium uppercase tracking-wide">Total Revenue</p>
+                  <p className="text-2xl font-heading font-bold text-ink mt-0.5">
                     ${orders.filter(o => o.status === 'COMPLETED').reduce((sum, o) => sum + parseFloat(o.totalAmount || 0), 0).toFixed(2)}
                   </p>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div className="card p-5">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-xl">📋</div>
+                <div className="w-12 h-12 rounded-input bg-primary/10 text-primary flex items-center justify-center">
+                  <ClipboardList className="h-6 w-6" strokeWidth={1.8} />
+                </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Orders</p>
-                  <p className="text-2xl font-bold text-gray-800 mt-0.5">{orders.length}</p>
+                  <p className="text-xs text-body font-medium uppercase tracking-wide">Total Orders</p>
+                  <p className="text-2xl font-heading font-bold text-ink mt-0.5">{orders.length}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div className="card p-5">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center text-xl">🚚</div>
+                <div className="w-12 h-12 rounded-input bg-sage/20 text-primary flex items-center justify-center">
+                  <Truck className="h-6 w-6" strokeWidth={1.8} />
+                </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Trucks</p>
-                  <p className="text-2xl font-bold text-gray-800 mt-0.5">{trucks.length}</p>
+                  <p className="text-xs text-body font-medium uppercase tracking-wide">Total Trucks</p>
+                  <p className="text-2xl font-heading font-bold text-ink mt-0.5">{trucks.length}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div className="card p-5">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-xl">👥</div>
+                <div className="w-12 h-12 rounded-input bg-accent/15 text-accentDark flex items-center justify-center">
+                  <Users className="h-6 w-6" strokeWidth={1.8} />
+                </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-800 mt-0.5">{users.length}</p>
+                  <p className="text-xs text-body font-medium uppercase tracking-wide">Total Users</p>
+                  <p className="text-2xl font-heading font-bold text-ink mt-0.5">{users.length}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Order Status Summary */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-800">Order Status Breakdown</h3>
+          <div className="card p-0 overflow-hidden">
+            <div className="px-5 py-4 border-b border-line">
+              <h3 className="font-heading font-semibold text-ink">Order Status Breakdown</h3>
             </div>
             <div className="p-5">
               <div className="space-y-3">
@@ -214,19 +226,19 @@ export default function AdminDashboard() {
                   const count = orders.filter(o => o.status === status).length;
                   const pct = orders.length > 0 ? (count / orders.length * 100).toFixed(1) : 0;
                   const colors = {
-                    PLACED: 'bg-blue-500',
-                    PREPARING: 'bg-yellow-500',
-                    READY: 'bg-green-500',
-                    COMPLETED: 'bg-gray-500',
-                    CANCELLED: 'bg-red-500',
+                    PLACED: 'bg-primary',
+                    PREPARING: 'bg-warning',
+                    READY: 'bg-success',
+                    COMPLETED: 'bg-ink',
+                    CANCELLED: 'bg-error',
                   };
                   return (
                     <div key={status} className="flex items-center gap-3">
-                      <span className="w-24 text-sm text-gray-600 font-medium">{status}</span>
-                      <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                      <span className="w-24 text-sm text-body font-medium">{status}</span>
+                      <div className="flex-1 h-4 bg-line/60 rounded-full overflow-hidden">
                         <div className={`h-full ${colors[status]} rounded-full transition-all duration-500`} style={{ width: pct + '%' }} />
                       </div>
-                      <span className="w-16 text-sm text-gray-500 text-right">{count} ({pct}%)</span>
+                      <span className="w-16 text-sm text-body/80 text-right">{count} ({pct}%)</span>
                     </div>
                   );
                 })}
@@ -235,10 +247,10 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <span>🏆</span> Top Performing
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="card p-5">
+              <h3 className="font-heading font-semibold text-ink mb-3 flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-accentDark" strokeWidth={2} /> Top Performing
               </h3>
               {trucks.length > 0 ? (
                 <div className="space-y-2">
@@ -248,34 +260,37 @@ export default function AdminDashboard() {
                     .slice(0, 5)
                     .map((truck, idx) => (
                       <div key={truck.id} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">{idx + 1}. {truck.name}</span>
-                        <span className="font-medium text-yellow-500">★ {truck.averageRating.toFixed(1)}</span>
+                        <span className="text-body">{idx + 1}. {truck.name}</span>
+                        <span className="font-medium text-accentDark inline-flex items-center gap-1">
+                          <Star className="w-3.5 h-3.5 fill-current" />
+                          {truck.averageRating.toFixed(1)}
+                        </span>
                       </div>
                     ))}
                   {trucks.filter(t => t.averageRating > 0).length === 0 && (
-                    <p className="text-sm text-gray-400">No ratings yet</p>
+                    <p className="text-sm text-body/60">No ratings yet</p>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">No trucks yet</p>
+                <p className="text-sm text-body/60">No trucks yet</p>
               )}
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <span>📈</span> Active vs Closed
+            <div className="card p-5">
+              <h3 className="font-heading font-semibold text-ink mb-3 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" strokeWidth={2} /> Active vs Closed
               </h3>
               <div className="flex items-center gap-6">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-green-600">{trucks.filter(t => t.status === 'OPEN').length}</p>
-                  <p className="text-xs text-gray-500 mt-1">Open</p>
+                  <p className="text-3xl font-heading font-bold text-success">{trucks.filter(t => t.status === 'OPEN').length}</p>
+                  <p className="text-xs text-body mt-1">Open</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-gray-400">{trucks.filter(t => t.status === 'CLOSED').length}</p>
-                  <p className="text-xs text-gray-500 mt-1">Closed</p>
+                  <p className="text-3xl font-heading font-bold text-body/70">{trucks.filter(t => t.status === 'CLOSED').length}</p>
+                  <p className="text-xs text-body mt-1">Closed</p>
                 </div>
-                <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                <div className="flex-1 h-3 bg-line/60 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-green-500 rounded-full transition-all"
+                    className="h-full bg-success rounded-full transition-all"
                     style={{ width: (trucks.length > 0 ? (trucks.filter(t => t.status === 'OPEN').length / trucks.length * 100) : 0) + '%' }}
                   />
                 </div>
@@ -286,40 +301,40 @@ export default function AdminDashboard() {
       )}
 
       {activeTab === 'users' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800">All Users ({users.length})</h2>
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-line">
+            <h2 className="text-lg font-heading font-semibold text-ink">All Users ({users.length})</h2>
           </div>
           {loading.users ? (
             <div className="flex justify-center py-12">
-              <div className="h-10 w-10 rounded-full border-4 border-orange-500 border-t-transparent animate-spin" />
+              <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
             </div>
           ) : error.users ? (
-            <div className="text-center py-12 text-red-500">{error.users}</div>
+            <div className="text-center py-12 text-error">{error.users}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50">
+                <thead className="bg-cream">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">ID</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Created</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">ID</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Name</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Email</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Role</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Created</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-line">
                   {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-gray-500">{user.id}</td>
-                      <td className="px-4 py-3 font-medium text-gray-800">{user.name}</td>
-                      <td className="px-4 py-3 text-gray-600">{user.email}</td>
+                    <tr key={user.id} className="hover:bg-cream transition-colors">
+                      <td className="px-4 py-3 text-body/80">{user.id}</td>
+                      <td className="px-4 py-3 font-medium text-ink">{user.name}</td>
+                      <td className="px-4 py-3 text-body">{user.email}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                            user.role === 'VENDOR' ? 'bg-orange-100 text-orange-700' :
-                            'bg-blue-100 text-blue-700'
+                          <span className={`badge ${
+                            user.role === 'ADMIN' ? 'bg-accent/15 text-accentDark' :
+                            user.role === 'VENDOR' ? 'bg-sage/25 text-primary' :
+                            'bg-primary/10 text-primary'
                           }`}>
                             {user.role}
                           </span>
@@ -332,7 +347,7 @@ export default function AdminDashboard() {
                                   [user.id]: e.target.value,
                                 }))
                               }
-                              className="text-xs border border-gray-200 rounded-md px-2 py-1 text-gray-700 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                              className="text-xs border border-line rounded-md px-2 py-1 text-ink focus:ring-1 focus:ring-primary focus:border-primary outline-none bg-surface"
                             >
                               <option value="" disabled>
                                 Change to…
@@ -347,10 +362,10 @@ export default function AdminDashboard() {
                                   handleRoleUpdate(user.id, selectedRoles[user.id])
                                 }
                                 disabled={roleUpdating[user.id]}
-                                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                                className={`px-2 py-1 rounded-md text-xs font-heading font-medium transition-colors ${
                                   roleUpdating[user.id]
-                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                    : 'bg-orange-500 text-white hover:bg-orange-600'
+                                    ? 'bg-line text-body/60 cursor-not-allowed'
+                                    : 'bg-primary text-white hover:bg-primary-dark'
                                 }`}
                               >
                                 {roleUpdating[user.id] ? (
@@ -367,19 +382,19 @@ export default function AdminDashboard() {
                               </button>
                             )}
                             {roleUpdateSuccess[user.id] && (
-                              <span className="text-xs text-green-600 font-medium">
+                              <span className="text-xs text-success font-medium">
                                 ✓ {roleUpdateSuccess[user.id]}
                               </span>
                             )}
                             {roleUpdateError[user.id] && (
-                              <span className="text-xs text-red-600 font-medium" title={roleUpdateError[user.id]}>
+                              <span className="text-xs text-error font-medium" title={roleUpdateError[user.id]}>
                                 ✗ {roleUpdateError[user.id]}
                               </span>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-500">
+                      <td className="px-4 py-3 text-body/80">
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
                       </td>
                     </tr>
@@ -392,9 +407,9 @@ export default function AdminDashboard() {
       )}
 
       {activeTab === 'trucks' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-800">All Trucks ({trucks.length})</h2>
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-line flex items-center justify-between">
+            <h2 className="text-lg font-heading font-semibold text-ink">All Trucks ({trucks.length})</h2>
             <button
               onClick={() => {
                 setCreateTruckForm({ name: '', cuisineType: 'Mexican', description: '', latitude: '', longitude: '', imageUrl: '', ownerId: '' });
@@ -402,7 +417,7 @@ export default function AdminDashboard() {
                 setCreateTruckSuccess('');
                 setShowCreateTruck(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium"
+              className="btn btn-primary btn-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Create Truck
@@ -410,39 +425,44 @@ export default function AdminDashboard() {
           </div>
           {loading.trucks ? (
             <div className="flex justify-center py-12">
-              <div className="h-10 w-10 rounded-full border-4 border-orange-500 border-t-transparent animate-spin" />
+              <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
             </div>
           ) : error.trucks ? (
-            <div className="text-center py-12 text-red-500">{error.trucks}</div>
+            <div className="text-center py-12 text-error">{error.trucks}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50">
+                <thead className="bg-cream">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">ID</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Cuisine</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Owner</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Rating</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">ID</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Name</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Cuisine</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Owner</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Status</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Rating</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-line">
                   {trucks.map((truck) => (
-                    <tr key={truck.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-gray-500">{truck.id}</td>
-                      <td className="px-4 py-3 font-medium text-gray-800">{truck.name}</td>
-                      <td className="px-4 py-3 text-gray-600">{truck.cuisineType}</td>
-                      <td className="px-4 py-3 text-gray-500">{truck.ownerId}</td>
+                    <tr key={truck.id} className="hover:bg-cream transition-colors">
+                      <td className="px-4 py-3 text-body/80">{truck.id}</td>
+                      <td className="px-4 py-3 font-medium text-ink">{truck.name}</td>
+                      <td className="px-4 py-3 text-body">{truck.cuisineType}</td>
+                      <td className="px-4 py-3 text-body/80">{truck.ownerId}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          truck.status === 'OPEN' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                        <span className={`badge ${
+                          truck.status === 'OPEN' ? 'bg-success/15 text-success' : 'bg-line/60 text-body'
                         }`}>
                           {truck.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-500">
-                        {truck.averageRating > 0 ? `★ ${truck.averageRating}` : '-'}
+                      <td className="px-4 py-3 text-body/80">
+                        {truck.averageRating > 0 ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Star className="w-3.5 h-3.5 text-accentDark fill-current" />
+                            {truck.averageRating}
+                          </span>
+                        ) : '-'}
                       </td>
                     </tr>
                   ))}
@@ -454,48 +474,48 @@ export default function AdminDashboard() {
       )}
 
       {activeTab === 'orders' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800">All Orders ({orders.length})</h2>
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-line">
+            <h2 className="text-lg font-heading font-semibold text-ink">All Orders ({orders.length})</h2>
           </div>
           {loading.orders ? (
             <div className="flex justify-center py-12">
-              <div className="h-10 w-10 rounded-full border-4 border-orange-500 border-t-transparent animate-spin" />
+              <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
             </div>
           ) : error.orders ? (
-            <div className="text-center py-12 text-red-500">{error.orders}</div>
+            <div className="text-center py-12 text-error">{error.orders}</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50">
+                <thead className="bg-cream">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">ID</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Customer</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Truck</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Total</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-600">Date</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">ID</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Customer</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Truck</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Total</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Status</th>
+                    <th className="text-left px-4 py-3 font-heading font-medium text-body">Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-line">
                   {orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-gray-500">{order.id}</td>
-                      <td className="px-4 py-3 text-gray-800 font-medium">{order.customerId}</td>
-                      <td className="px-4 py-3 text-gray-600">{order.truckId}</td>
-                      <td className="px-4 py-3 text-gray-800 font-medium">${order.totalAmount}</td>
+                    <tr key={order.id} className="hover:bg-cream transition-colors">
+                      <td className="px-4 py-3 text-body/80">{order.id}</td>
+                      <td className="px-4 py-3 text-ink font-medium">{order.customerId}</td>
+                      <td className="px-4 py-3 text-body">{order.truckId}</td>
+                      <td className="px-4 py-3 text-ink font-medium">${order.totalAmount}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          order.status === 'PLACED' ? 'bg-blue-100 text-blue-700' :
-                          order.status === 'PREPARING' ? 'bg-yellow-100 text-yellow-700' :
-                          order.status === 'READY' ? 'bg-green-100 text-green-700' :
-                          order.status === 'COMPLETED' ? 'bg-gray-100 text-gray-600' :
-                          'bg-red-100 text-red-700'
+                        <span className={`badge ${
+                          order.status === 'PLACED' ? 'bg-primary/10 text-primary' :
+                          order.status === 'PREPARING' ? 'bg-warning/15 text-warning' :
+                          order.status === 'READY' ? 'bg-success/15 text-success' :
+                          order.status === 'COMPLETED' ? 'bg-line/60 text-body' :
+                          'bg-error/15 text-error'
                         }`}>
                           {order.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-500">
+                      <td className="px-4 py-3 text-body/80">
                         {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}
                       </td>
                     </tr>
@@ -511,9 +531,9 @@ export default function AdminDashboard() {
       {activeTab === 'analytics' && (
         <div className="space-y-6">
           {/* Revenue by Truck */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-800">Revenue by Truck</h3>
+          <div className="card p-0 overflow-hidden">
+            <div className="px-5 py-4 border-b border-line">
+              <h3 className="font-heading font-semibold text-ink">Revenue by Truck</h3>
             </div>
             <div className="p-5">
               {trucks.length > 0 ? (
@@ -525,26 +545,26 @@ export default function AdminDashboard() {
                     const pct = (revenue / maxRevenue * 100);
                     return (
                       <div key={truck.id} className="flex items-center gap-3">
-                        <span className="w-32 text-sm text-gray-600 font-medium truncate">{truck.name}</span>
-                        <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full transition-all duration-500 flex items-center justify-end pr-2" style={{ width: pct + '%' }}>
+                        <span className="w-32 text-sm text-body font-medium truncate">{truck.name}</span>
+                        <div className="flex-1 h-5 bg-line/60 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-primary to-primary-dark rounded-full transition-all duration-500 flex items-center justify-end pr-2" style={{ width: pct + '%' }}>
                             {pct > 15 && <span className="text-xs text-white font-medium">${revenue.toFixed(0)}</span>}
                           </div>
                         </div>
-                        <span className="w-20 text-sm text-gray-500 text-right">${revenue.toFixed(2)}</span>
+                        <span className="w-20 text-sm text-body/80 text-right">${revenue.toFixed(2)}</span>
                       </div>
                     );
                   })}
                 </div>
-              ) : <p className="text-sm text-gray-400">No data yet</p>}
+              ) : <p className="text-sm text-body/60">No data yet</p>}
             </div>
           </div>
 
           {/* Daily Order Trends */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <span>📅</span> Orders by Day
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="card p-5">
+              <h3 className="font-heading font-semibold text-ink mb-4 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" strokeWidth={2} /> Orders by Day
               </h3>
               {orders.length > 0 ? (() => {
                 const dailyCounts = {};
@@ -558,20 +578,20 @@ export default function AdminDashboard() {
                   <div className="flex items-end gap-2 h-32">
                     {days.map(([day, count]) => (
                       <div key={day} className="flex-1 flex flex-col items-center gap-1">
-                        <span className="text-xs text-gray-500 font-medium">{count}</span>
-                        <div className="w-full bg-orange-200 rounded-t-md" style={{ height: (count / maxCount * 100) + '%' }}>
-                          <div className="w-full h-full bg-orange-500 rounded-t-md transition-all" style={{ height: '100%' }} />
+                        <span className="text-xs text-body/70 font-medium">{count}</span>
+                        <div className="w-full bg-sage/30 rounded-t-md" style={{ height: (count / maxCount * 100) + '%' }}>
+                          <div className="w-full h-full bg-primary rounded-t-md transition-all" style={{ height: '100%' }} />
                         </div>
-                        <span className="text-[10px] text-gray-400 truncate w-full text-center">{day.slice(0, 5)}</span>
+                        <span className="text-[10px] text-body/60 truncate w-full text-center">{day.slice(0, 5)}</span>
                       </div>
                     ))}
                   </div>
                 );
-              })() : <p className="text-sm text-gray-400">No orders yet</p>}
+              })() : <p className="text-sm text-body/60">No orders yet</p>}
             </div>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                <span>🏆</span> Top Customers by Spend
+            <div className="card p-5">
+              <h3 className="font-heading font-semibold text-ink mb-3 flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-accentDark" strokeWidth={2} /> Top Customers by Spend
               </h3>
               {orders.length > 0 ? (() => {
                 const customerSpend = {};
@@ -584,20 +604,20 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     {top.map(([id, amount], idx) => (
                       <div key={id} className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600">{idx + 1}. Customer #{id}</span>
-                        <span className="font-medium text-gray-800">${amount.toFixed(2)}</span>
+                        <span className="text-body">{idx + 1}. Customer #{id}</span>
+                        <span className="font-heading font-medium text-ink">${amount.toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
                 );
-              })() : <p className="text-sm text-gray-400">No completed orders yet</p>}
+              })() : <p className="text-sm text-body/60">No completed orders yet</p>}
             </div>
           </div>
 
           {/* Cuisine Popularity */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-            <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <span>🍽️</span> Cuisine Popularity
+          <div className="card p-5">
+            <h3 className="font-heading font-semibold text-ink mb-3 flex items-center gap-2">
+              <Utensils className="h-4 w-4 text-primary" strokeWidth={2} /> Cuisine Popularity
             </h3>
             {trucks.length > 0 ? (() => {
               const cuisineCounts = {};
@@ -610,67 +630,69 @@ export default function AdminDashboard() {
                 <div className="space-y-2">
                   {sorted.map(([cuisine, count]) => (
                     <div key={cuisine} className="flex items-center gap-3">
-                      <span className="w-28 text-sm text-gray-600 font-medium">{cuisine}</span>
-                      <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-orange-400 rounded-full" style={{ width: (count / maxCount * 100) + '%' }} />
+                      <span className="w-28 text-sm text-body font-medium">{cuisine}</span>
+                      <div className="flex-1 h-4 bg-line/60 rounded-full overflow-hidden">
+                        <div className="h-full bg-sage rounded-full" style={{ width: (count / maxCount * 100) + '%' }} />
                       </div>
-                      <span className="w-8 text-sm text-gray-500 text-right">{count}</span>
+                      <span className="w-8 text-sm text-body/80 text-right">{count}</span>
                     </div>
                   ))}
                 </div>
               );
-            })() : <p className="text-sm text-gray-400">No trucks yet</p>}
+            })() : <p className="text-sm text-body/60">No trucks yet</p>}
           </div>
         </div>
       )}
 
       {/* Audit Log Tab */}
       {activeTab === 'audit' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800">🔍 Admin Activity Log</h2>
-            <p className="text-sm text-gray-500 mt-1">Track all admin actions across the platform</p>
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 border-b border-line">
+            <h2 className="text-lg font-heading font-semibold text-ink flex items-center gap-2">
+              <Search className="h-5 w-5 text-primary" strokeWidth={2} /> Admin Activity Log
+            </h2>
+            <p className="text-sm text-body mt-1">Track all admin actions across the platform</p>
           </div>
           <div className="p-5">
             <div className="space-y-3">
               {/* Role changes */}
               {users.filter(u => u.role === 'ADMIN').length > 0 && (
-                <div className="border-l-4 border-purple-400 bg-purple-50 rounded-r-lg p-4">
-                  <p className="text-sm font-medium text-purple-800">Role Management</p>
-                  <p className="text-xs text-purple-600 mt-1">{users.filter(u => u.role !== 'CUSTOMER').length} users have elevated roles</p>
+                <div className="border-l-4 border-accent bg-accent/10 rounded-r-input p-4">
+                  <p className="text-sm font-heading font-medium text-ink">Role Management</p>
+                  <p className="text-xs text-primary mt-1">{users.filter(u => u.role !== 'CUSTOMER').length} users have elevated roles</p>
                 </div>
               )}
               {/* Truck creation */}
-              <div className="border-l-4 border-orange-400 bg-orange-50 rounded-r-lg p-4">
-                <p className="text-sm font-medium text-orange-800">Truck Management</p>
-                <p className="text-xs text-orange-600 mt-1">{trucks.length} trucks in the system · {trucks.filter(t => t.status === 'OPEN').length} currently open</p>
+              <div className="border-l-4 border-primary bg-primary/5 rounded-r-input p-4">
+                <p className="text-sm font-heading font-medium text-ink">Truck Management</p>
+                <p className="text-xs text-primary mt-1">{trucks.length} trucks in the system · {trucks.filter(t => t.status === 'OPEN').length} currently open</p>
               </div>
               {/* Recent orders */}
-              <div className="border-l-4 border-blue-400 bg-blue-50 rounded-r-lg p-4">
-                <p className="text-sm font-medium text-blue-800">Order Activity</p>
-                <p className="text-xs text-blue-600 mt-1">{orders.length} total orders · {orders.filter(o => o.status === 'PLACED').length} pending · {orders.filter(o => o.status === 'COMPLETED').length} completed</p>
+              <div className="border-l-4 border-sage bg-sage/15 rounded-r-input p-4">
+                <p className="text-sm font-heading font-medium text-ink">Order Activity</p>
+                <p className="text-xs text-primary mt-1">{orders.length} total orders · {orders.filter(o => o.status === 'PLACED').length} pending · {orders.filter(o => o.status === 'COMPLETED').length} completed</p>
               </div>
               {/* System health */}
-              <div className="border-l-4 border-green-400 bg-green-50 rounded-r-lg p-4">
-                <p className="text-sm font-medium text-green-800">System Health</p>
-                <p className="text-xs text-green-600 mt-1">All services running · {users.length} registered users · {trucks.length} food trucks</p>
+              <div className="border-l-4 border-success bg-success/10 rounded-r-input p-4">
+                <p className="text-sm font-heading font-medium text-ink">System Health</p>
+                <p className="text-xs text-primary mt-1">All services running · {users.length} registered users · {trucks.length} food trucks</p>
               </div>
             </div>
 
-            <div className="mt-6 border-t border-gray-100 pt-4">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Recent Activity</h3>
+            <div className="mt-6 border-t border-line pt-4">
+              <h3 className="text-sm font-heading font-semibold text-ink mb-3">Recent Activity</h3>
               <div className="space-y-2">
                 {users.slice(0, 5).map((user) => (
-                  <div key={user.id} className="flex items-start gap-3 text-sm py-2 border-b border-gray-50 last:border-0">
-                    <span className="text-gray-400 mt-0.5">•</span>
+                  <div key={user.id} className="flex items-start gap-3 text-sm py-2 border-b border-line last:border-0">
+                    <span className="text-body/60 mt-0.5">•</span>
                     <div>
-                      <span className="text-gray-700">User <strong>{user.name}</strong> ({user.email})</span>
-                      <span className={'ml-2 px-1.5 py-0.5 rounded text-xs font-medium ' + (
-                        user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                        user.role === 'VENDOR' ? 'bg-orange-100 text-orange-700' :
-                        'bg-blue-100 text-blue-700'
+                      <span className="text-ink">User <strong>{user.name}</strong> ({user.email})</span>
+                      <span className={'ml-2 badge ' + (
+                        user.role === 'ADMIN' ? 'bg-accent/15 text-accentDark' :
+                        user.role === 'VENDOR' ? 'bg-sage/25 text-primary' :
+                        'bg-primary/10 text-primary'
                       )}>{user.role}</span>
-                      <p className="text-xs text-gray-400 mt-0.5">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
+                      <p className="text-xs text-body/60 mt-0.5">Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
                     </div>
                   </div>
                 ))}
@@ -682,39 +704,41 @@ export default function AdminDashboard() {
 
       {/* ──────────── Admin Create Truck Modal ──────────── */}
       {showCreateTruck && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setShowCreateTruck(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Create truck for vendor">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-800"><span>🚚</span> Create Truck for Vendor</h2>
-              <button onClick={() => setShowCreateTruck(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4" onClick={() => setShowCreateTruck(false)}>
+          <div className="card shadow-card-hover max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Create truck for vendor">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line">
+              <h2 className="text-lg font-heading font-semibold text-ink flex items-center gap-2">
+                <Truck className="h-5 w-5 text-primary" strokeWidth={2} /> Create Truck for Vendor
+              </h2>
+              <button onClick={() => setShowCreateTruck(false)} className="text-body/60 hover:text-ink p-1 rounded-lg hover:bg-cream">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
             <div className="p-6 space-y-4">
-              {createTruckError && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{createTruckError}</div>}
-              {createTruckSuccess && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">{createTruckSuccess}</div>}
+              {createTruckError && <div className="bg-error/10 border border-error/30 text-error px-4 py-3 rounded-input text-sm">{createTruckError}</div>}
+              {createTruckSuccess && <div className="bg-success/10 border border-success/30 text-success px-4 py-3 rounded-input text-sm">{createTruckSuccess}</div>}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Truck Name <span className="text-red-500">*</span></label>
-                  <input value={createTruckForm.name} onChange={(e) => setCreateTruckForm({ ...createTruckForm, name: e.target.value })} placeholder="e.g. Taco Express" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                  <label className="block text-sm font-medium text-ink mb-1.5">Truck Name <span className="text-error">*</span></label>
+                  <input value={createTruckForm.name} onChange={(e) => setCreateTruckForm({ ...createTruckForm, name: e.target.value })} placeholder="e.g. Taco Express" className="input-field" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Owner User ID <span className="text-red-500">*</span></label>
-                  <input type="number" min="1" value={createTruckForm.ownerId} onChange={(e) => setCreateTruckForm({ ...createTruckForm, ownerId: e.target.value })} placeholder="e.g. 2" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                  <label className="block text-sm font-medium text-ink mb-1.5">Owner User ID <span className="text-error">*</span></label>
+                  <input type="number" min="1" value={createTruckForm.ownerId} onChange={(e) => setCreateTruckForm({ ...createTruckForm, ownerId: e.target.value })} placeholder="e.g. 2" className="input-field" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Cuisine Type <span className="text-red-500">*</span></label>
-                  <select value={createTruckForm.cuisineType} onChange={(e) => setCreateTruckForm({ ...createTruckForm, cuisineType: e.target.value })} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-500 outline-none">
+                  <label className="block text-sm font-medium text-ink mb-1.5">Cuisine Type <span className="text-error">*</span></label>
+                  <select value={createTruckForm.cuisineType} onChange={(e) => setCreateTruckForm({ ...createTruckForm, cuisineType: e.target.value })} className="select-field">
                     {['Mexican','Italian','American','Asian','Indian','Mediterranean','BBQ','Seafood','Other'].map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Latitude <span className="text-red-500">*</span></label>
-                  <input type="number" step="any" value={createTruckForm.latitude} onChange={(e) => setCreateTruckForm({ ...createTruckForm, latitude: e.target.value })} placeholder="40.7128" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                  <label className="block text-sm font-medium text-ink mb-1.5">Latitude <span className="text-error">*</span></label>
+                  <input type="number" step="any" value={createTruckForm.latitude} onChange={(e) => setCreateTruckForm({ ...createTruckForm, latitude: e.target.value })} placeholder="40.7128" className="input-field" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Longitude <span className="text-red-500">*</span></label>
-                  <input type="number" step="any" value={createTruckForm.longitude} onChange={(e) => setCreateTruckForm({ ...createTruckForm, longitude: e.target.value })} placeholder="-74.0060" className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                  <label className="block text-sm font-medium text-ink mb-1.5">Longitude <span className="text-error">*</span></label>
+                  <input type="number" step="any" value={createTruckForm.longitude} onChange={(e) => setCreateTruckForm({ ...createTruckForm, longitude: e.target.value })} placeholder="-74.0060" className="input-field" />
                 </div>
                 <div className="md:col-span-2">
                   <MapPicker
@@ -725,18 +749,18 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea value={createTruckForm.description} onChange={(e) => setCreateTruckForm({ ...createTruckForm, description: e.target.value })} rows={2} className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none resize-none" />
+                  <label className="block text-sm font-medium text-ink mb-1.5">Description</label>
+                  <textarea value={createTruckForm.description} onChange={(e) => setCreateTruckForm({ ...createTruckForm, description: e.target.value })} rows={2} className="textarea-field" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                  <input value={createTruckForm.imageUrl} onChange={(e) => setCreateTruckForm({ ...createTruckForm, imageUrl: e.target.value })} placeholder="https://..." className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 outline-none" />
+                  <label className="block text-sm font-medium text-ink mb-1.5">Image URL</label>
+                  <input value={createTruckForm.imageUrl} onChange={(e) => setCreateTruckForm({ ...createTruckForm, imageUrl: e.target.value })} placeholder="https://..." className="input-field" />
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
-              <button onClick={() => setShowCreateTruck(false)} className="px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">Cancel</button>
-              <button onClick={handleCreateTruck} disabled={createTruckSubmitting} className="px-5 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-line bg-cream rounded-b-card">
+              <button onClick={() => setShowCreateTruck(false)} className="btn btn-secondary btn-sm">Cancel</button>
+              <button onClick={handleCreateTruck} disabled={createTruckSubmitting} className="btn btn-primary btn-sm">
                 {createTruckSubmitting ? (
                   <><svg className="animate-spin h-4 w-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.3" /><path d="M8 2a6 6 0 016 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg> Creating...</>
                 ) : (

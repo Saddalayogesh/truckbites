@@ -1,4 +1,8 @@
+import { useNavigate } from 'react-router-dom';
+import { Clock } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from './Toast';
 
 const formatPrice = (price) => {
   return new Intl.NumberFormat('en-US', {
@@ -7,65 +11,95 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
-export default function MenuItemCard({ item, truckId }) {
+export default function MenuItemCard({ item, truckId, truck }) {
+  const navigate = useNavigate();
+  const { token } = useAuth();
   const { addItem } = useCart();
+  const { addToast } = useToast();
   const outOfStock = !item.isAvailable || (item.quantityAvailable != null && item.quantityAvailable <= 0);
+  const prepMins = item.prepTimeMinutes ?? truck?.estimatedPrepTimeMinutes;
 
   const handleAddToCart = () => {
+    // Guests must sign in before adding items to the cart
+    if (!token) {
+      addToast('Sign in to add items to your cart', 'warning');
+      navigate('/login', { state: { from: 'cart' } });
+      return;
+    }
     addItem(item, truckId);
+    addToast(`${item.name} added to cart`, 'success');
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 hover:border-orange-200 overflow-hidden group">
-      <div className="p-5">
+    <div className="card card-hover p-0 flex flex-col overflow-hidden group">
+      {/* Optional food image */}
+      {item.imageUrl && (
+        <div className="relative h-36 overflow-hidden">
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="w-full h-full object-cover rounded-image group-hover:scale-105 transition-transform duration-500"
+          />
+        </div>
+      )}
+
+      <div className="p-5 flex-1 flex flex-col">
         {/* Header row: name + price */}
         <div className="flex justify-between items-start gap-4">
-          <h3 className="text-lg font-semibold text-gray-800 group-hover:text-orange-600 transition-colors">
+          <h3 className="text-lg font-heading font-semibold text-ink group-hover:text-primary transition-colors">
             {item.name}
           </h3>
-          <span className="text-lg font-bold text-orange-600 whitespace-nowrap">
+          <span className="text-lg font-heading font-bold text-primary whitespace-nowrap">
             {formatPrice(item.price)}
           </span>
         </div>
 
-        {/* Category badge */}
-        {item.category && (
-          <span className="inline-block mt-2 text-xs font-medium text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">
-            {item.category}
-          </span>
-        )}
+        {/* Meta chips */}
+        <div className="flex flex-wrap items-center gap-2 mt-2.5">
+          {item.category && (
+            <span className="badge badge-sage">
+              {item.category}
+            </span>
+          )}
+          {prepMins != null && (
+            <span className="badge bg-cream text-body/80">
+              <Clock className="h-3 w-3" strokeWidth={2.2} />
+              ~{prepMins} min
+            </span>
+          )}
+        </div>
 
         {/* Description */}
         {item.description && (
-          <p className="text-sm text-gray-500 mt-2 line-clamp-2">
+          <p className="text-sm text-body mt-2.5 line-clamp-2 flex-1">
             {item.description}
           </p>
         )}
 
         {/* Quantity info */}
         {item.quantityAvailable != null && (
-          <p className="text-xs text-gray-400 mt-2">
+          <p className={`text-xs mt-2 ${item.quantityAvailable > 0 ? 'text-body/70' : 'text-error font-medium'}`}>
             {item.quantityAvailable > 0
               ? `${item.quantityAvailable} available`
               : 'Out of stock'}
           </p>
         )}
-      </div>
 
-      {/* Add to Cart button */}
-      <div className="px-5 pb-5">
-        {outOfStock ? (
-          <span className="block w-full text-center py-2.5 rounded-lg text-sm font-semibold bg-gray-100 text-gray-400 cursor-not-allowed">
-            {item.isAvailable === false ? 'Unavailable' : 'Out of Stock'}
-          </span>
-        ) : (
-          <button
-            onClick={handleAddToCart}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 active:scale-[0.98] transition-all duration-200 shadow-sm"
-          >
-            Add to Cart +
-          </button>
-        )}
+        {/* Add to Cart button */}
+        <div className="mt-4 pt-4 border-t border-line">
+          {outOfStock ? (
+            <span className="block w-full text-center h-[46px] leading-[46px] rounded-full text-sm font-heading font-semibold bg-line/60 text-body/70 cursor-not-allowed">
+              {item.isAvailable === false ? 'Unavailable' : 'Out of Stock'}
+            </span>
+          ) : (
+            <button
+              onClick={handleAddToCart}
+              className="btn btn-primary btn-sm btn-block"
+            >
+              Add to Cart +
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

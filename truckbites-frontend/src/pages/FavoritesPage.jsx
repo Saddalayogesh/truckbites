@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getMyFavorites } from '../api/truckApi';
 import TruckCard from '../components/TruckCard';
+import { TruckCardSkeleton } from '../components/Skeleton';
 import { Link } from 'react-router-dom';
+import { Heart, AlertTriangle } from 'lucide-react';
 
 export default function FavoritesPage() {
   const [favorites, setFavorites] = useState([]);
@@ -29,39 +31,41 @@ export default function FavoritesPage() {
   return (
     <div className="min-h-[80vh]">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">My Favorites</h1>
-        <p className="text-gray-500 mt-1">Your favourite food trucks, all in one place</p>
+        <span className="section-eyebrow">Saved trucks</span>
+        <h1 className="text-3xl font-heading font-bold text-ink mt-1">My Favorites</h1>
+        <p className="text-body mt-2">Your favourite food trucks, all in one place</p>
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center py-20">
-          <div className="relative">
-            <div className="h-16 w-16 rounded-full border-4 border-gray-200" />
-            <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-orange-500 border-t-transparent animate-spin" />
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[0, 1, 2, 3].map((i) => <TruckCardSkeleton key={i} />)}
         </div>
       ) : error ? (
-        <div className="text-center py-20">
-          <span className="text-5xl">\u26a0\ufe0f</span>
-          <p className="text-gray-600 mt-4 text-lg">{error}</p>
+        <div className="card p-16 text-center">
+          <span className="w-16 h-16 rounded-full bg-warning/15 text-warning flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-8 w-8" strokeWidth={1.6} />
+          </span>
+          <p className="text-body mt-4 text-lg">{error}</p>
         </div>
       ) : favorites.length === 0 ? (
-        <div className="text-center py-20">
-          <span className="text-6xl">\u2764\ufe0f</span>
-          <h3 className="text-xl font-semibold text-gray-700 mt-4">No favorites yet</h3>
-          <p className="text-gray-500 mt-2 max-w-md mx-auto">
+        <div className="card p-16 text-center">
+          <span className="w-20 h-20 rounded-full bg-accent/15 text-accentDark flex items-center justify-center mx-auto mb-6">
+            <Heart className="h-9 w-9 fill-current" strokeWidth={0} />
+          </span>
+          <h3 className="text-xl font-heading font-semibold text-ink mt-2">No favorites yet</h3>
+          <p className="text-body mt-2 max-w-md mx-auto">
             Browse food trucks and tap the heart icon to save your favorites!
           </p>
           <Link
             to="/discover"
-            className="mt-6 inline-block px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+            className="btn btn-primary mt-6 inline-flex"
           >
             Discover Trucks
           </Link>
         </div>
       ) : (
         <>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-body mb-4">
             {favorites.length} truck{favorites.length !== 1 ? 's' : ''} saved
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

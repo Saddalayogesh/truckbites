@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { addFavorite, removeFavorite, checkFavorite } from '../api/truckApi';
+import { useToast } from './Toast';
 import logger from '../utils/logger';
 
 const COMPONENT = 'FavoriteButton';
 
 export default function FavoriteButton({ truckId, className = '' }) {
   const { token, role } = useAuth();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
   const [isFavorited, setIsFavorited] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -28,35 +32,48 @@ export default function FavoriteButton({ truckId, className = '' }) {
   const handleToggle = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!token) return;
+
+    // Not signed in → send to login with a friendly toast
+    if (!token) {
+      addToast('Sign in to save your favorite trucks', 'warning');
+      navigate('/login');
+      return;
+    }
+
     setLoading(true);
     try {
       if (isFavorited) {
         await removeFavorite(truckId);
         setIsFavorited(false);
+        addToast('Removed from your favorites', 'info');
       } else {
         await addFavorite(truckId);
         setIsFavorited(true);
+        addToast('Added to your favorites!', 'success');
       }
     } catch (err) {
-      logger.error(COMPONENT, 'Failed to toggle favorite', { truckId, error: err.message });
+      const message = err.response?.data?.message || 'Failed to update favorite';
+      addToast(message, 'error');
+      logger.error(COMPONENT, 'Failed to toggle favorite', { truckId, error: message });
     } finally {
       setLoading(false);
     }
   };
 
-  if (role !== 'CUSTOMER') return null;
+  // Hide for signed-in vendors/admins; show for guests (prompts login) and customers
+  if (token && role !== 'CUSTOMER') return null;
 
   return (
     <button
       onClick={handleToggle}
       disabled={loading}
-      className={"absolute top-3 left-3 p-2 rounded-full transition-all duration-200 z-10 " +
+      className={"absolute top-3 left-3 p-2 rounded-full transition-all duration-200 z-10 active:scale-[1.03] " +
         (isFavorited
-          ? 'bg-red-500 text-white shadow-md hover:bg-red-600'
-          : 'bg-white/80 text-gray-400 hover:text-red-500 hover:bg-white shadow-sm') +
+          ? 'bg-accent text-ink shadow-md'
+          : 'bg-white/85 text-body/80 hover:text-accentDark hover:bg-white shadow-sm backdrop-blur') +
         ' ' + className}
       aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+      title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
     >
       {loading ? (
         <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
