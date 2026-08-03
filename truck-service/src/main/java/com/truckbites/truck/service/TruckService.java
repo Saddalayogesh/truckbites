@@ -105,6 +105,14 @@ public class TruckService {
         return truckRepository.findByOwnerId(ownerId);
     }
 
+    /**
+     * Returns the top 6 trending trucks ranked by average rating (descending).
+     */
+    public List<Truck> getTrendingTrucks() {
+        log.debug("Fetching top 6 trending trucks by average rating");
+        return truckRepository.findTop6ByOrderByAverageRatingDesc();
+    }
+
     private List<Truck> findNearbyTrucks(Double latitude, Double longitude, Double radiusKm) {
         log.debug("Finding trucks near lat: {}, lon: {}, radius: {}km", latitude, longitude, radiusKm);
 

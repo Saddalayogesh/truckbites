@@ -288,6 +288,9 @@ services:
       <<: *java-env
       SPRING_DATASOURCE_URL: jdbc:mysql://payment-mysql:3306/payment_db
       SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8086/actuator/health"]
       interval: 30s
@@ -313,6 +316,9 @@ services:
     environment:
       <<: *java-env
       SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
       MAILTRAP_USERNAME: ${MAILTRAP_USERNAME:-}
       MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD:-}
     healthcheck:
@@ -368,6 +374,9 @@ services:
       <<: *java-env
       SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_db
       SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8085/actuator/health"]
       interval: 30s

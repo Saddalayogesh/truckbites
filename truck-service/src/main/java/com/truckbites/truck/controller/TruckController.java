@@ -79,6 +79,20 @@ public class TruckController {
                 truckService.searchTrucks(cuisineType, latitude, longitude, radiusKm));
     }
 
+    @GetMapping("/trending")
+    @Operation(
+            summary = "Get trending food trucks",
+            description = "Returns the top 6 food trucks ranked by average customer rating (descending)."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "List of top 6 trending trucks returned",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Truck.class))))
+    })
+    public ResponseEntity<List<Truck>> getTrendingTrucks() {
+        log.info("Get trending trucks");
+        return ResponseEntity.ok(truckService.getTrendingTrucks());
+    }
+
     @GetMapping("/my-trucks")
     @Operation(
             summary = "Get my trucks (VENDOR)",

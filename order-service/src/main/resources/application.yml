@@ -20,11 +20,19 @@ spring:
     port: 5672
     username: guest
     password: guest
-
   cloud:
     openfeign:
       circuitbreaker:
         enabled: true
+
+app:
+  rabbitmq:
+    exchange: truckbites.exchange
+    routing-key:
+      order-placed: order.placed
+      order-paid: order.paid
+    queue:
+      order-paid: order.paid.queue
 
 jwt:
   secret: ${JWT_SECRET}

@@ -24,6 +24,10 @@ spring:
     port: 5672
     username: guest
     password: guest
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
 
 app:
   rabbitmq:
@@ -33,12 +37,6 @@ app:
       order-paid: order.paid
     queue:
       order-paid: order.paid.queue
-
-spring:
-  cloud:
-    openfeign:
-      circuitbreaker:
-        enabled: true
 
 jwt:
   secret: ${JWT_SECRET}

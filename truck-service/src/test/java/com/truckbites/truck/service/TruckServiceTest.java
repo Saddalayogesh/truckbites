@@ -329,6 +329,41 @@ class TruckServiceTest {
         verify(truckRepository).findByOwnerId(999L);
     }
 
+    // ──────────── getTrendingTrucks ────────────
+
+    @Test
+    @DisplayName("Should return top 6 trucks by average rating descending")
+    void getTrendingTrucks_shouldReturnTopRatedTrucks() {
+        // Arrange
+        List<Truck> trending = List.of(
+                createDefaultTruck(1L, 42L),
+                createDefaultTruck(2L, 43L)
+        );
+        when(truckRepository.findTop6ByOrderByAverageRatingDesc()).thenReturn(trending);
+
+        // Act
+        List<Truck> result = truckService.getTrendingTrucks();
+
+        // Assert
+        assertThat(result).hasSize(2);
+        assertThat(result).isEqualTo(trending);
+        verify(truckRepository).findTop6ByOrderByAverageRatingDesc();
+    }
+
+    @Test
+    @DisplayName("Should return empty list when no trucks exist")
+    void getTrendingTrucks_shouldReturnEmptyList_whenNoTrucks() {
+        // Arrange
+        when(truckRepository.findTop6ByOrderByAverageRatingDesc()).thenReturn(List.of());
+
+        // Act
+        List<Truck> result = truckService.getTrendingTrucks();
+
+        // Assert
+        assertThat(result).isEmpty();
+        verify(truckRepository).findTop6ByOrderByAverageRatingDesc();
+    }
+
     // ──────────── deleteTruck ────────────
 
     @Test

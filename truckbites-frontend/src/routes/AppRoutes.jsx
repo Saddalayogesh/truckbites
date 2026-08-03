@@ -5,6 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 
 const Login = lazy(() => import('../pages/Login'));
 const Register = lazy(() => import('../pages/Register'));
+const Home = lazy(() => import('../pages/Home'));
 const TruckDiscovery = lazy(() => import('../pages/TruckDiscovery'));
 const TruckMenu = lazy(() => import('../pages/TruckMenu'));
 const Cart = lazy(() => import('../pages/Cart'));
@@ -36,7 +37,7 @@ export default function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/discover" element={<TruckDiscovery />} />
-      <Route path="/" element={<TruckDiscovery />} />
+      <Route path="/" element={<Home />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
