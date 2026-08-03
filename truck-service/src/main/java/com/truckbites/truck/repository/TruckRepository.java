@@ -14,6 +14,12 @@ public interface TruckRepository extends JpaRepository<Truck, Long> {
 
     List<Truck> findByCuisineTypeContainingIgnoreCase(String cuisineType);
 
+    /**
+     * Returns the top 6 trucks ranked by cached average rating, descending.
+     * The averageRating field is maintained by ReviewService on every review.
+     */
+    List<Truck> findTop6ByOrderByAverageRatingDesc();
+
     Optional<Truck> findByIdAndOwnerId(Long id, Long ownerId);
 
     /**

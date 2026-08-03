@@ -3,6 +3,7 @@ import ProtectedRoute from '../components/ProtectedRoute';
 
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import Home from '../pages/Home';
 import TruckDiscovery from '../pages/TruckDiscovery';
 import TruckMenu from '../pages/TruckMenu';
 import Cart from '../pages/Cart';
@@ -123,8 +124,11 @@ export default function AppRoutes() {
         }
       />
 
+      {/* Landing page */}
+      <Route path="/" element={<Home />} />
+
       {/* Default redirect */}
-      <Route path="/" element={<TruckDiscovery />} />
+      <Route path="*" element={<Home />} />
     </Routes>
   );
 }

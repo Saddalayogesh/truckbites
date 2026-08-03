@@ -18,8 +18,6 @@ spring:
         connection.read_only: true
         hbm2ddl:
           auto: none
-
-spring:
   cloud:
     openfeign:
       circuitbreaker:

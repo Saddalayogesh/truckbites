@@ -23,6 +23,18 @@ export async function searchTrucks(filters) {
   }
 }
 
+export async function getTrendingTrucks() {
+  logger.info(COMPONENT, 'Fetching trending trucks');
+  try {
+    const response = await axiosClient.get('/trucks/trending');
+    logger.debug(COMPONENT, 'Trending trucks fetched', { count: response.data?.length });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to fetch trending trucks', error.message);
+    throw error;
+  }
+}
+
 export async function getTruckById(id) {
   logger.info(COMPONENT, 'Fetching truck by id', { id });
   try {

@@ -110,6 +110,36 @@ class TruckControllerTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
+    // ──────────── GET /api/trucks/trending (public) ────────────
+
+    @Test
+    @DisplayName("GET /api/trucks/trending should return top rated trucks")
+    void trendingTrucks_shouldReturnTruckList() throws Exception {
+        List<Truck> trucks = List.of(
+                createTruck(1L, "Taco Truck", 1L),
+                createTruck(2L, "Pizza Truck", 2L)
+        );
+        when(truckService.getTrendingTrucks()).thenReturn(trucks);
+
+        mockMvc.perform(get("/api/trucks/trending")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].name").value("Taco Truck"))
+                .andExpect(jsonPath("$[1].name").value("Pizza Truck"));
+    }
+
+    @Test
+    @DisplayName("GET /api/trucks/trending should be publicly accessible")
+    void trendingTrucks_shouldBePublic() throws Exception {
+        when(truckService.getTrendingTrucks()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/trucks/trending")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
     // ──────────── GET /api/trucks/{id} (public) ────────────
 
     @Test

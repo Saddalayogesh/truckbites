@@ -48,6 +48,7 @@ export default function Checkout() {
         const truckItems = itemsByTruck[truckId];
         const orderPayload = {
           truckId,
+          customerEmail: user?.email,
           items: truckItems.map((ci) => ({
             menuItemId: ci.menuItemId,
             quantity: ci.quantity,
