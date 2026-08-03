@@ -69,6 +69,11 @@ public class JwtValidationFilter extends OncePerRequestFilter {
                         sendUnauthorizedResponse(response, "Invalid token: no role claim");
                         return;
                     }
+                    if (userId == null) {
+                        log.warn("No userId claim in JWT token for user: {} — token predates userId claims or is malformed. Client should refresh its token.", userEmail);
+                        sendUnauthorizedResponse(response, "Invalid token: missing userId claim. Please refresh your session.");
+                        return;
+                    }
                     String role = "ROLE_" + userRole;
                     UserPrincipal principal = new UserPrincipal(userEmail, userId);
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(

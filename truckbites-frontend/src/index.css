@@ -1,3 +1,399 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════
+   TruckBites Design System v3 — Premium Light + Dark
+   Warm ivory · rich terracotta · warm sand · champagne bronze
+   All custom tokens are CSS variables → a .dark class on <html> swaps
+   the whole theme automatically.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Canvas */
+  --cream: 252 248 244;   /* #FCF8F4 */
+  --linen: 246 238 230;   /* #F6EEE6 */
+  --surface: 255 255 255; /* cards, inputs */
+  /* Brand */
+  --primary: 184 92 56;       /* rich terracotta */
+  --primary-dark: 158 74 43;
+  --sage: 217 176 140;        /* warm sand */
+  --accent: 201 164 106;      /* champagne bronze */
+  --accent-dark: 154 116 52;  /* readable bronze on light */
+  /* Semantic */
+  --success: 111 143 91;
+  --success-dark: 79 107 63;
+  --warning: 217 119 6;
+  --error: 220 38 38;
+  /* Text & lines */
+  --ink: 35 35 35;        /* #232323 */
+  --body: 110 98 89;      /* #6E6259 */
+  --line: 232 221 211;    /* #E8DDD3 */
+}
+
+.dark {
+  /* Canvas */
+  --cream: 23 18 14;      /* deep warm espresso */
+  --linen: 32 26 20;
+  --surface: 42 34 27;
+  /* Brand — brightened for dark surfaces */
+  --primary: 201 104 66;
+  --primary-dark: 168 80 51;
+  --sage: 201 160 130;
+  --accent: 168 126 58;       /* medium bronze → ink text stays legible */
+  --accent-dark: 214 176 111; /* light bronze for text on dark */
+  /* Semantic */
+  --success: 143 184 122;
+  --success-dark: 167 204 148;
+  --warning: 224 148 66;
+  --error: 229 92 92;
+  /* Text & lines */
+  --ink: 244 238 229;
+  --body: 184 171 156;
+  --line: 61 51 42;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream text-body font-body antialiased transition-colors duration-300;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-heading text-ink;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-ink;
+  }
+
+  /* Elegant thin scrollbar for the premium feel */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(120, 105, 90, 0.35);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 105, 90, 0.55);
+    background-clip: content-box;
+  }
+
+  /* Consistent, visible keyboard focus */
+  :focus-visible {
+    outline: 3px solid rgba(201, 164, 106, 0.55);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* ── Buttons ──────────────────────────────────────────────────── */
+  /* 52px height · fully rounded pill · Poppins SemiBold */
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 h-[52px] px-8 rounded-full font-heading font-semibold text-base whitespace-nowrap select-none cursor-pointer transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-white hover:bg-primary-dark shadow-soft hover:shadow-glow-brand;
+  }
+
+  .btn-secondary {
+    @apply btn bg-surface text-primary border-2 border-primary hover:bg-primary/5;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-primary px-6 hover:bg-primary/10;
+  }
+
+  /* Champagne bronze CTA — used sparingly for premium moments */
+  .btn-gold {
+    @apply btn bg-accent text-ink hover:bg-accent/90 shadow-glow;
+  }
+
+  .btn-sm {
+    @apply h-11 px-5 text-sm;
+  }
+
+  .btn-block {
+    @apply w-full;
+  }
+
+  /* ── Cards ────────────────────────────────────────────────────── */
+  /* 24px radius · surface · 1px line border · soft premium shadow */
+
+  .card {
+    @apply bg-surface rounded-card border border-line shadow-card;
+  }
+
+  .card-hover {
+    @apply hover:-translate-y-1.5 hover:shadow-card-hover dark:hover:shadow-dark transition-all duration-300;
+  }
+
+  /* ── Glassmorphism ────────────────────────────────────────────── */
+
+  .glass {
+    @apply bg-surface/70 backdrop-blur-xl border border-line/60 shadow-glass;
+  }
+
+  .glass-strong {
+    @apply bg-surface/85 backdrop-blur-2xl border border-line/70 shadow-glass;
+  }
+
+  /* ── Inputs ───────────────────────────────────────────────────── */
+  /* 52px height · 16px radius · terracotta focus */
+
+  .input-field {
+    @apply w-full h-[52px] px-4 rounded-input bg-surface border border-line text-ink placeholder:text-body/60 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15 transition-all duration-200 text-base;
+  }
+
+  .select-field {
+    @apply input-field appearance-none bg-no-repeat pr-10 cursor-pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236E6259' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-position: right 1rem center;
+    background-size: 1.15rem;
+  }
+
+  .textarea-field {
+    @apply w-full px-4 py-3.5 rounded-input bg-surface border border-line text-ink placeholder:text-body/60 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/15 transition-all duration-200 text-base resize-none;
+  }
+
+  /* ── Badges & chips ───────────────────────────────────────────── */
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold;
+  }
+
+  .badge-sage {
+    @apply badge bg-sage/20 text-primary;
+  }
+
+  .badge-gold {
+    @apply badge bg-accent/15 text-accentDark;
+  }
+
+  .badge-success {
+    @apply badge bg-success/15 text-success;
+  }
+
+  .badge-warning {
+    @apply badge bg-warning/15 text-warning;
+  }
+
+  .badge-error {
+    @apply badge bg-error/15 text-error;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border border-line bg-surface text-body transition-all duration-200 hover:border-primary hover:text-primary hover:shadow-soft active:scale-[0.97] cursor-pointer select-none;
+  }
+
+  .chip-active {
+    @apply bg-primary text-white border-primary hover:bg-primary-dark hover:text-white;
+  }
+
+  /* ── Section eyebrow label ────────────────────────────────────── */
+
+  .section-eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary;
+  }
+
+  /* ── Bronze gradient text (premium headlines, theme-aware) ────── */
+
+  .text-gradient-gold {
+    background-image: linear-gradient(
+      92deg,
+      rgb(var(--accent-dark)),
+      rgb(var(--accent)) 52%,
+      rgb(var(--accent-dark))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* ── Scroll-reveal (paired with <Reveal/> component) ──────────── */
+
+  .reveal {
+    @apply opacity-0 translate-y-7 transition-all duration-700 ease-out will-change-transform;
+  }
+
+  .reveal-visible {
+    @apply opacity-100 translate-y-0;
+  }
+
+  /* ── Container ────────────────────────────────────────────────── */
+  /* 1280px max width */
+
+  .container-app {
+    @apply mx-auto w-full max-w-container px-4 sm:px-6 lg:px-8;
+  }
+
+  /* ── Skeleton loader ──────────────────────────────────────────── */
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-card bg-line/70;
+  }
+
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: tb-shimmer 1.6s infinite;
+  }
+
+  .skeleton-text {
+    @apply skeleton rounded-md;
+  }
+}
+
+@keyframes tb-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ── Dark-mode map (invert light OSM tiles for a premium night map) ── */
+
+.dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(190deg) brightness(0.92) contrast(0.9) saturate(0.35);
+}
+
+/* ── Custom premium map markers ─────────────────────────────────── */
+
+.tb-pin {
+  width: 38px;
+  height: 38px;
+  border-radius: 9999px;
+  background: rgb(var(--primary));
+  border: 3px solid #ffffff;
+  box-shadow: 0 8px 18px rgba(35, 35, 35, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  transition: transform 0.2s ease;
+}
+
+.tb-pin:hover {
+  transform: scale(1.12);
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 16px !important;
+  box-shadow: 0 12px 32px rgba(35, 35, 35, 0.14) !important;
+}
+
+.leaflet-popup-content {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+}
+
+/* ── react-toastify premium theming ──────────────────────────────── */
+
+.Toastify__toast {
+  border-radius: 16px !important;
+  border: 1px solid rgb(var(--line));
+  box-shadow: 0 12px 32px rgba(35, 35, 35, 0.10) !important;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.Toastify__toast-theme--dark,
+.Toastify__toast-theme--light,
+.Toastify__toast-theme--colored.Toastify__toast--default {
+  background: rgb(var(--surface)) !important;
+  color: rgb(var(--ink));
+}
+
+.Toastify__progress-bar {
+  height: 3px !important;
+  border-radius: 9999px;
+  background: rgb(var(--primary));
+}
+
+.Toastify__progress-bar--success { background: rgb(var(--success)) !important; }
+.Toastify__progress-bar--error { background: rgb(var(--error)) !important; }
+.Toastify__progress-bar--warning { background: rgb(var(--warning)) !important; }
+.Toastify__progress-bar--info { background: rgb(var(--primary)) !important; }
+
+/* Slide-in animation for toasts */
+.Toastify__toast {
+  animation: tb-toast-in 0.32s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+}
+
+@keyframes tb-toast-in {
+  0% {
+    opacity: 0;
+    transform: translateX(40px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* ── SweetAlert2 premium theming ─────────────────────────────────── */
+
+.swal2-popup {
+  border-radius: 24px !important;
+  border: 1px solid rgb(var(--line));
+  box-shadow: 0 24px 60px rgba(35, 35, 35, 0.16) !important;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  padding: 2rem !important;
+  background: rgb(var(--surface)) !important;
+}
+
+.swal2-title {
+  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  color: rgb(var(--ink));
+}
+
+.swal2-html-container {
+  color: rgb(var(--body));
+  font-size: 0.95rem;
+}
+
+.swal2-confirm {
+  border-radius: 9999px !important;
+  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  padding: 0.8rem 1.75rem !important;
+  box-shadow: 0 10px 30px rgba(184, 92, 56, 0.25) !important;
+}
+
+.swal2-cancel {
+  border-radius: 9999px !important;
+  font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  padding: 0.8rem 1.75rem !important;
+  background: rgb(var(--surface)) !important;
+  border: 2px solid rgb(var(--primary)) !important;
+  color: rgb(var(--primary)) !important;
+}
+
+.swal2-cancel:hover {
+  background: rgb(var(--primary) / 0.08) !important;
+}
+
+.swal2-icon {
+  border-width: 3px;
+}

@@ -1,5 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { ShoppingCart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useToast } from '../components/Toast';
+import { showConfirm } from '../utils/confirm';
 
 const formatPrice = (price) => {
   return new Intl.NumberFormat('en-US', {
@@ -10,18 +13,38 @@ const formatPrice = (price) => {
 
 export default function Cart() {
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const { items, itemsByTruck, removeItem, updateQuantity, clearCart, total, itemCount, truckIds } = useCart();
+
+  const handleClearCart = async () => {
+    const confirmed = await showConfirm({
+      title: 'Clear your cart?',
+      text: 'All items in your cart will be removed.',
+      confirmText: 'Yes, Clear Cart',
+      danger: true,
+    });
+    if (!confirmed) return;
+    clearCart();
+    addToast('Cart cleared', 'info');
+  };
+
+  const handleRemoveItem = (cartItemId, name) => {
+    removeItem(cartItemId);
+    addToast(`${name} removed from cart`, 'info');
+  };
 
   if (items.length === 0) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
         <div className="text-center">
-          <span className="text-7xl block mb-6">🛒</span>
-          <h1 className="text-3xl font-bold text-gray-800 mb-3">Your Cart is Empty</h1>
-          <p className="text-gray-500 mb-8 text-lg">Add some delicious food truck items to get started!</p>
+          <span className="w-20 h-20 rounded-full bg-sage/20 text-primary flex items-center justify-center mx-auto mb-6">
+            <ShoppingCart className="h-9 w-9" strokeWidth={1.6} />
+          </span>
+          <h1 className="text-3xl font-heading font-bold text-ink mb-3">Your Cart is Empty</h1>
+          <p className="text-body mb-8 text-lg">Add some delicious food truck items to get started!</p>
           <Link
-            to="/trucks"
-            className="inline-block bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-orange-700 transition-all duration-200 shadow-sm"
+            to="/discover"
+            className="btn btn-primary"
           >
             Discover Trucks
           </Link>
@@ -33,10 +56,13 @@ export default function Cart() {
   return (
     <div className="min-h-[80vh]">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Your Cart</h1>
+        <div>
+          <span className="section-eyebrow">Almost there</span>
+          <h1 className="text-3xl font-heading font-bold text-ink mt-1">Your Cart</h1>
+        </div>
         <button
-          onClick={clearCart}
-          className="text-sm text-red-500 hover:text-red-700 font-medium transition-colors px-4 py-2 rounded-lg hover:bg-red-50"
+          onClick={handleClearCart}
+          className="text-sm text-error hover:text-error/80 font-medium transition-colors px-4 py-2 rounded-full hover:bg-error/10"
         >
           Clear Cart
         </button>
@@ -49,52 +75,62 @@ export default function Cart() {
           if (!truckItems || truckItems.length === 0) return null;
 
           return (
-            <div key={truckId} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-orange-400 to-orange-500 px-6 py-3">
-                <h2 className="text-white font-semibold text-lg">Truck #{truckId}</h2>
+            <div key={truckId} className="card p-0 overflow-hidden">
+              <div className="bg-primary px-6 py-4 flex items-center gap-3">
+                <span className="h-9 w-9 rounded-full bg-white/15 text-white flex items-center justify-center">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 16V9a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7" />
+                    <path d="M14 12h4l2 3v1a1 1 0 0 1-1 1h-1" />
+                    <circle cx="7.5" cy="16.5" r="1.8" />
+                    <circle cx="17.5" cy="16.5" r="1.8" />
+                  </svg>
+                </span>
+                <h2 className="text-white font-heading font-semibold text-lg">Truck #{truckId}</h2>
               </div>
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-line">
                 {truckItems.map((cartItem) => (
                   <div
                     key={cartItem.cartItemId}
-                    className="flex items-center gap-4 p-4 hover:bg-orange-50/30 transition-colors"
+                    className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4 sm:p-5 hover:bg-cream transition-colors"
                   >
                     {/* Item info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-800 truncate">{cartItem.name}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">{formatPrice(cartItem.price)} each</p>
+                    <div className="flex-1 min-w-[150px]">
+                      <p className="font-medium text-ink truncate">{cartItem.name}</p>
+                      <p className="text-sm text-body/80 mt-0.5">{formatPrice(cartItem.price)} each</p>
                     </div>
 
                     {/* Quantity controls */}
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => updateQuantity(cartItem.cartItemId, cartItem.quantity - 1)}
-                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-100 hover:border-orange-400 transition-all text-lg font-medium"
+                        className="w-9 h-9 rounded-full border border-line flex items-center justify-center text-body hover:bg-primary hover:text-white hover:border-primary active:scale-[1.03] transition-all text-lg font-medium"
+                        aria-label="Decrease quantity"
                       >
                         −
                       </button>
-                      <span className="w-10 text-center font-semibold text-gray-800">
+                      <span className="w-10 text-center font-heading font-semibold text-ink">
                         {cartItem.quantity}
                       </span>
                       <button
                         onClick={() => updateQuantity(cartItem.cartItemId, cartItem.quantity + 1)}
-                        className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-100 hover:border-orange-400 transition-all text-lg font-medium"
+                        className="w-9 h-9 rounded-full border border-line flex items-center justify-center text-body hover:bg-primary hover:text-white hover:border-primary active:scale-[1.03] transition-all text-lg font-medium"
+                        aria-label="Increase quantity"
                       >
                         +
                       </button>
                     </div>
 
                     {/* Line total */}
-                    <div className="text-right w-24">
-                      <p className="font-semibold text-gray-800">
+                    <div className="text-right w-24 ml-auto sm:ml-0">
+                      <p className="font-heading font-semibold text-ink">
                         {formatPrice(cartItem.price * cartItem.quantity)}
                       </p>
                     </div>
 
                     {/* Remove */}
                     <button
-                      onClick={() => removeItem(cartItem.cartItemId)}
-                      className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                      onClick={() => handleRemoveItem(cartItem.cartItemId, cartItem.name)}
+                      className="text-body/50 hover:text-error transition-colors p-1.5 rounded-full hover:bg-error/10"
                       title="Remove item"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -110,22 +146,26 @@ export default function Cart() {
       </div>
 
       {/* Order summary */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky bottom-0">
+      <div className="card p-6 lg:p-8 sticky bottom-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-gray-600">Items ({itemCount})</span>
-          <span className="text-gray-800">{formatPrice(total)}</span>
+          <span className="text-body">Items ({itemCount})</span>
+          <span className="text-ink font-medium">{formatPrice(total)}</span>
         </div>
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-gray-600">Delivery Fee</span>
-          <span className="text-green-600 font-medium">Free</span>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-body">Delivery Fee</span>
+          <span className="text-success font-medium">Free</span>
         </div>
-        <div className="border-t border-gray-200 pt-4 flex items-center justify-between mb-6">
-          <span className="text-xl font-bold text-gray-800">Total</span>
-          <span className="text-xl font-bold text-orange-600">{formatPrice(total)}</span>
+        <div className="flex items-center justify-between mb-6">
+          <span className="text-body">Tax</span>
+          <span className="text-success font-medium">Included</span>
+        </div>
+        <div className="border-t border-line pt-4 flex items-center justify-between mb-6">
+          <span className="text-xl font-heading font-bold text-ink">Total</span>
+          <span className="text-xl font-heading font-bold text-primary">{formatPrice(total)}</span>
         </div>
         <button
           onClick={() => navigate('/checkout')}
-          className="w-full bg-orange-600 text-white py-3.5 rounded-xl font-semibold text-lg hover:bg-orange-700 active:scale-[0.98] transition-all duration-200 shadow-sm"
+          className="btn btn-primary btn-block"
         >
           Proceed to Checkout
         </button>

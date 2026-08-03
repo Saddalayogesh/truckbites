@@ -48,7 +48,7 @@ export default function MapPicker({ latitude, longitude, onLocationChange, heigh
   const position = hasPosition ? { lat: latitude, lng: longitude } : null;
 
   return (
-    <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm" style={{ height: pickerHeight }}>
+    <div className="rounded-card overflow-hidden border border-line shadow-soft" style={{ height: pickerHeight }}>
       <MapContainer center={center} zoom={hasPosition ? 15 : 12} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
         <TileLayer
           attribution="&copy; OpenStreetMap contributors"
@@ -57,8 +57,8 @@ export default function MapPicker({ latitude, longitude, onLocationChange, heigh
         <LocationMarker position={position} onLocationChange={onLocationChange} />
         <MapBoundsUpdater position={position} />
       </MapContainer>
-      <div className="bg-gray-50 px-3 py-2 text-xs text-gray-500 flex items-center gap-2 border-t border-gray-200">
-        <span className="inline-block w-2 h-2 rounded-full bg-orange-500" />
+      <div className="bg-cream px-3 py-2 text-xs text-body flex items-center gap-2 border-t border-line">
+        <span className="inline-block w-2 h-2 rounded-full bg-primary" />
         Click the map or drag the marker to set location
       </div>
     </div>

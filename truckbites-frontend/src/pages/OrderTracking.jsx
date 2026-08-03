@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getOrderById, getMyOrders, cancelOrder } from '../api/orderApi';
 import { getTruckById } from '../api/truckApi';
+import { useToast } from '../components/Toast';
+import { showConfirm } from '../utils/confirm';
 import logger from '../utils/logger';
+import { ClipboardList, ChefHat, CircleCheck, PartyPopper, NotebookPen, Clock, XCircle, X, TriangleAlert, Package } from 'lucide-react';
 
 const COMPONENT = 'OrderTracking';
 
@@ -16,10 +19,10 @@ const STEP_LABELS = {
 };
 
 const STEP_ICONS = {
-  PLACED: '📋',
-  PREPARING: '👨‍🍳',
-  READY: '✅',
-  COMPLETED: '🎉',
+  PLACED: <ClipboardList className="w-5 h-5" />,
+  PREPARING: <ChefHat className="w-5 h-5" />,
+  READY: <CircleCheck className="w-5 h-5" />,
+  COMPLETED: <PartyPopper className="w-5 h-5" />,
 };
 
 // Simple notification sound using Web Audio API
@@ -57,6 +60,7 @@ const formatDate = (dateStr) => {
 };
 
 function OrderCard({ order, onCancel }) {
+  const { addToast } = useToast();
   const currentStepIndex = STEPS.indexOf(order.status);
   const isCancelled = order.status === 'CANCELLED';
   const [estimatedPrepMins, setEstimatedPrepMins] = useState(null);
@@ -101,19 +105,19 @@ function OrderCard({ order, onCancel }) {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+    <div className="card p-0 overflow-hidden card-hover">
       {/* Header */}
-      <div className="bg-gradient-to-r from-orange-400 to-orange-500 px-6 py-4 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-primary to-primary-dark px-6 py-4 flex items-center justify-between">
         <div>
-          <h3 className="text-white font-semibold">Order #{order.id}</h3>
-          <p className="text-orange-100 text-sm mt-0.5">{formatDate(order.createdAt)}</p>
+          <h3 className="text-white font-heading font-semibold">Order #{order.id}</h3>
+          <p className="text-white/80 text-sm mt-0.5">{formatDate(order.createdAt)}</p>
         </div>
-        <span className={'px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide shadow-sm ' +
+        <span className={'px-3 py-1 rounded-full text-xs font-heading font-semibold uppercase tracking-wide shadow-sm ' +
           (isCancelled
-            ? 'bg-red-500 text-white'
+            ? 'bg-error text-white'
             : order.status === 'COMPLETED'
-              ? 'bg-gray-200 text-gray-700'
-              : 'bg-white/90 text-orange-700')
+              ? 'bg-white/85 text-body'
+              : 'bg-accent text-ink')
         }>
           {isCancelled ? 'Cancelled' : order.status}
         </span>
@@ -122,26 +126,26 @@ function OrderCard({ order, onCancel }) {
       <div className="p-6">
         {/* Special Instructions */}
         {order.notes && (
-          <div className="mb-4 bg-orange-50 border border-orange-100 rounded-lg px-4 py-3 flex items-start gap-3">
-            <span className="text-lg flex-shrink-0 mt-0.5">📝</span>
+          <div className="mb-4 bg-accent/10 border border-accent/25 rounded-input px-4 py-3 flex items-start gap-3">
+            <NotebookPen className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-medium text-orange-700">Special Instructions</p>
-              <p className="text-sm text-orange-800 mt-0.5">{order.notes}</p>
+              <p className="text-xs font-heading font-semibold text-ink">Special Instructions</p>
+              <p className="text-sm text-ink/90 mt-0.5">{order.notes}</p>
             </div>
           </div>
         )}
 
         {/* Items */}
         <div className="mb-6">
-          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Items</h4>
+          <h4 className="text-sm font-heading font-semibold text-body uppercase tracking-wide mb-3">Items</h4>
           <div className="space-y-2">
             {order.items?.map((item) => (
               <div key={item.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400 text-sm w-6">{item.quantity}x</span>
-                  <span className="text-gray-700">{item.itemName}</span>
+                  <span className="text-body/70 text-sm w-6">{item.quantity}x</span>
+                  <span className="text-ink">{item.itemName}</span>
                 </div>
-                <span className="text-gray-600 text-sm">{formatPrice(item.price * item.quantity)}</span>
+                <span className="text-body text-sm">{formatPrice(item.price * item.quantity)}</span>
               </div>
             ))}
           </div>
@@ -149,14 +153,14 @@ function OrderCard({ order, onCancel }) {
 
         {/* ETA badge */}
         {estimatedPrepMins && currentStepIndex >= 0 && currentStepIndex < 2 && (
-          <div className="mb-4 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 flex items-center gap-3">
-            <span className="text-xl">⏱️</span>
+          <div className="mb-4 bg-primary/5 border border-primary/20 rounded-input px-4 py-3 flex items-center gap-3">
+            <Clock className="w-5 h-5 text-primary flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium text-blue-800">
+              <p className="text-sm font-medium text-primary">
                 Est. ready in <strong>{estimatedPrepMins} min</strong>
               </p>
               {estimatedReadyTime && (
-                <p className="text-xs text-blue-600 mt-0.5">
+                <p className="text-xs text-primary/80 mt-0.5">
                   ~{estimatedReadyTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                   {getTimeRemaining() && currentStepIndex === 0 && (
                     <span> &middot; {getTimeRemaining()} remaining</span>
@@ -168,9 +172,9 @@ function OrderCard({ order, onCancel }) {
         )}
 
         {/* Total */}
-        <div className="border-t border-gray-100 pt-3 flex justify-between items-center mb-6">
-          <span className="font-semibold text-gray-800">Total</span>
-          <span className="font-bold text-orange-600 text-lg">{formatPrice(order.totalAmount)}</span>
+        <div className="border-t border-line pt-3 flex justify-between items-center mb-6">
+          <span className="font-heading font-semibold text-ink">Total</span>
+          <span className="font-heading font-bold text-primary text-lg">{formatPrice(order.totalAmount)}</span>
         </div>
 
         {/* Status progress bar */}
@@ -183,16 +187,16 @@ function OrderCard({ order, onCancel }) {
                     className={'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500 ' +
                       (idx <= currentStepIndex
                         ? step === 'COMPLETED'
-                          ? 'bg-gray-500 text-white shadow-md'
-                          : 'bg-orange-500 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-400')
+                          ? 'bg-[#232323] text-white shadow-card'
+                          : 'bg-primary text-white shadow-card'
+                        : 'bg-line/60 text-body/70')
                     }
                   >
                     {STEP_ICONS[step]}
                   </div>
                   <p
                     className={'text-xs mt-1.5 font-medium whitespace-nowrap ' +
-                      (idx <= currentStepIndex ? 'text-orange-600' : 'text-gray-400')
+                      (idx <= currentStepIndex ? 'text-primary' : 'text-body/70')
                     }
                   >
                     {STEP_LABELS[step]}
@@ -201,9 +205,9 @@ function OrderCard({ order, onCancel }) {
               ))}
             </div>
             {/* Connecting line */}
-            <div className="absolute top-5 left-[12.5%] right-[12.5%] h-0.5 bg-gray-200 -translate-y-1/2 z-0">
+            <div className="absolute top-5 left-[12.5%] right-[12.5%] h-0.5 bg-line -translate-y-1/2 z-0">
               <div
-                className="h-full bg-orange-500 transition-all duration-700 ease-out"
+                className="h-full bg-primary transition-all duration-700 ease-out"
                 style={{
                   width: ((currentStepIndex / (STEPS.length - 1)) * 100) + '%',
                 }}
@@ -217,32 +221,41 @@ function OrderCard({ order, onCancel }) {
           <div className="mb-4">
             <button
               onClick={async () => {
-                if (!window.confirm('Are you sure you want to cancel this order?')) return;
+                const confirmed = await showConfirm({
+                  title: 'Cancel this order?',
+                  text: 'This order will be cancelled and cannot be restored. Cancellation is only available within 60 seconds of placing the order.',
+                  confirmText: 'Yes, Cancel Order',
+                  danger: true,
+                });
+                if (!confirmed) return;
                 setCancelling(true);
                 setCancelError(null);
                 try {
                   await cancelOrder(order.id);
+                  addToast('Order cancelled', 'info');
                   if (onCancel) onCancel(order.id);
                 } catch (err) {
-                  setCancelError(err.response?.data?.message || 'Failed to cancel order');
+                  const msg = err.response?.data?.message || 'Failed to cancel order';
+                  setCancelError(msg);
+                  addToast(msg, 'error');
                 } finally {
                   setCancelling(false);
                 }
               }}
               disabled={cancelling}
-              className="text-xs px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors disabled:opacity-50"
+              className="btn btn-sm bg-error text-white hover:bg-error/90"
             >
-              {cancelling ? 'Cancelling...' : '❌ Cancel Order (within 60s)'}
+              {cancelling ? 'Cancelling...' : (<><X className="w-4 h-4" /> Cancel Order (within 60s)</>)}
             </button>
-            {cancelError && <p className="text-xs text-red-500 mt-1">{cancelError}</p>}
+            {cancelError && <p className="text-xs text-error mt-1">{cancelError}</p>}
           </div>
         )}
 
         {/* Cancelled state */}
         {isCancelled && (
           <div className="text-center py-4">
-            <span className="text-3xl">❌</span>
-            <p className="text-gray-500 mt-2">This order has been cancelled.</p>
+            <XCircle className="w-12 h-12 text-error mx-auto" />
+            <p className="text-body mt-2">This order has been cancelled.</p>
           </div>
         )}
       </div>
@@ -323,10 +336,11 @@ export default function OrderTracking() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-full border-4 border-gray-200" />
-          <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-orange-500 border-t-transparent animate-spin" />
+      <div className="min-h-[80vh]">
+        <div className="skeleton-text h-9 w-56" />
+        <div className="mt-8 space-y-6">
+          <div className="skeleton h-64 rounded-card" />
+          <div className="skeleton h-64 rounded-card" />
         </div>
       </div>
     );
@@ -335,9 +349,10 @@ export default function OrderTracking() {
   if (error && orders.length === 0) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
-        <div className="text-center">            <span className="text-5xl block mb-4">⚠️</span>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Something went wrong</h1>
-          <p className="text-gray-500">{error}</p>
+        <div className="text-center">
+          <TriangleAlert className="w-14 h-14 text-warning mx-auto mb-4" />
+          <h1 className="text-2xl font-heading font-bold text-ink mb-2">Something went wrong</h1>
+          <p className="text-body">{error}</p>
         </div>
       </div>
     );
@@ -345,13 +360,14 @@ export default function OrderTracking() {
 
   return (
     <div className="min-h-[80vh]">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">My Orders</h1>
+      <span className="section-eyebrow">Live updates</span>
+      <h1 className="text-3xl font-heading font-bold text-ink mb-8 mt-1">My Orders</h1>
 
       {orders.length === 0 ? (
-        <div className="text-center py-20">
-          <span className="text-6xl block mb-6">📦</span>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">No Orders Yet</h2>
-          <p className="text-gray-500 mb-8 text-lg">Place your first order and track it here!</p>
+        <div className="card p-16 text-center">
+          <Package className="w-14 h-14 text-primary/30 mx-auto mb-6" />
+          <h2 className="text-2xl font-heading font-bold text-ink mb-2">No Orders Yet</h2>
+          <p className="text-body mb-8 text-lg">Place your first order and track it here!</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -367,7 +383,7 @@ export default function OrderTracking() {
 
       {error && orders.length > 0 && (
         <div className="text-center py-4">
-          <p className="text-sm text-gray-400">{error}</p>
+          <p className="text-sm text-body/70">{error}</p>
         </div>
       )}
     </div>

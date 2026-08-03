@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Search, AlertTriangle, MapPin } from 'lucide-react';
 import { searchTrucks } from '../api/truckApi';
 import TruckCard from '../components/TruckCard';
+import { TruckCardSkeleton } from '../components/Skeleton';
 
 const CUISINE_OPTIONS = [
   'All',
@@ -178,44 +180,33 @@ export default function TruckDiscovery() {
   return (
     <div className="min-h-[80vh]">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Discover Food Trucks</h1>
-        <p className="text-gray-500 mt-1">Find your next meal on wheels — nearby</p>
+      <div className="mb-10">
+        <span className="section-eyebrow">Explore the city</span>
+        <h1 className="text-3xl sm:text-4xl font-heading font-bold text-ink mt-2">Discover Food Trucks</h1>
+        <p className="text-body mt-2">Find your next meal on wheels — nearby</p>
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4">
+      <div className="card p-5 mb-8">
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Search input */}
           <div className="flex-1 relative">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-body/60" strokeWidth={2} />
             <input
               type="text"
               placeholder="Search trucks by name or cuisine..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all text-sm"
+              className="input-field pl-11"
             />
           </div>
 
           {/* Cuisine filter */}
-          <div className="sm:w-44">
+          <div className="sm:w-48">
             <select
               value={cuisineFilter}
               onChange={(e) => setCuisineFilter(e.target.value)}
-              className="w-full py-2.5 px-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all text-sm bg-white"
+              className="select-field"
             >
               {CUISINE_OPTIONS.map((cuisine) => (
                 <option key={cuisine} value={cuisine}>
@@ -226,11 +217,11 @@ export default function TruckDiscovery() {
           </div>
 
           {/* Status filter */}
-          <div className="sm:w-36">
+          <div className="sm:w-40">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full py-2.5 px-3 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-500 outline-none"
+              className="select-field"
             >
               <option value="all">All Status</option>
               <option value="open">Open Now</option>
@@ -239,11 +230,11 @@ export default function TruckDiscovery() {
           </div>
 
           {/* Sort */}
-          <div className="sm:w-40">
+          <div className="sm:w-44">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="w-full py-2.5 px-3 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-500 outline-none"
+              className="select-field"
             >
               {SORT_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
@@ -254,12 +245,12 @@ export default function TruckDiscovery() {
         </div>
 
         {/* Location row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mt-4 pt-4 border-t border-gray-100">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mt-4 pt-4 border-t border-line">
           {!location ? (
             <button
               onClick={useMyLocation}
               disabled={locating}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-semibold hover:bg-orange-700 active:scale-[0.98] transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="btn btn-secondary btn-sm"
             >
               {locating ? (
                 <>
@@ -271,10 +262,7 @@ export default function TruckDiscovery() {
                 </>
               ) : (
                 <>
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+                  <MapPin className="h-4 w-4" strokeWidth={2} />
                   Use My Location
                 </>
               )}
@@ -282,7 +270,7 @@ export default function TruckDiscovery() {
           ) : (
             <button
               onClick={clearLocation}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors"
+              className="btn btn-ghost btn-sm"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -292,12 +280,12 @@ export default function TruckDiscovery() {
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Within</span>
+            <span className="text-sm text-body">Within</span>
             <select
               value={radiusKm}
               onChange={(e) => setRadiusKm(Number(e.target.value))}
               disabled={!location}
-              className="py-2 px-3 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="select-field h-[52px] w-28 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {RADIUS_OPTIONS.map((r) => (
                 <option key={r} value={r}>{r} km</option>
@@ -306,7 +294,7 @@ export default function TruckDiscovery() {
           </div>
 
           {location && (
-            <span className="text-sm text-green-600 font-medium inline-flex items-center gap-1">
+            <span className="text-sm text-success font-medium inline-flex items-center gap-1">
               <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
@@ -315,38 +303,36 @@ export default function TruckDiscovery() {
           )}
 
           {locationError && (
-            <span className="text-sm text-red-600 font-medium">{locationError}</span>
+            <span className="text-sm text-error font-medium">{locationError}</span>
           )}
         </div>
       </div>
 
       {/* Content area */}
       {loading ? (
-        /* Loading spinner */
-        <div className="flex justify-center items-center py-20">
-          <div className="relative">
-            <div className="h-16 w-16 rounded-full border-4 border-gray-200" />
-            <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-4 border-orange-500 border-t-transparent animate-spin" />
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => <TruckCardSkeleton key={i} />)}
         </div>
       ) : error ? (
-        /* Error state */
-        <div className="text-center py-20">
-          <span className="text-5xl">⚠️</span>
-          <p className="text-gray-600 mt-4 text-lg">{error}</p>
+        <div className="card p-16 text-center">
+          <span className="w-16 h-16 rounded-full bg-warning/15 text-warning flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-8 w-8" strokeWidth={1.6} />
+          </span>
+          <p className="text-body mt-4 text-lg">{error}</p>
           <button
             onClick={() => setRetryCount((c) => c + 1)}
-            className="mt-4 px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+            className="btn btn-primary mt-6"
           >
             Try Again
           </button>
         </div>
       ) : filteredTrucks.length === 0 ? (
-        /* Empty state */
-        <div className="text-center py-20">
-          <span className="text-6xl">🔍</span>
-          <h3 className="text-xl font-semibold text-gray-700 mt-4">No trucks found</h3>
-          <p className="text-gray-500 mt-2 max-w-md mx-auto">
+        <div className="card p-16 text-center">
+          <span className="w-16 h-16 rounded-full bg-sage/20 text-primary flex items-center justify-center mx-auto">
+            <Search className="h-8 w-8" strokeWidth={1.6} />
+          </span>
+          <h3 className="text-xl font-heading font-semibold text-ink mt-4">No trucks found</h3>
+          <p className="text-body mt-2 max-w-md mx-auto">
             {location
               ? `No trucks found within ${radiusKm} km of your location. Try a larger radius or clear the location filter.`
               : searchQuery || cuisineFilter !== 'All' || statusFilter !== 'all'
@@ -364,16 +350,15 @@ export default function TruckDiscovery() {
                 setLocationError('');
                 setVisibleCount(PAGE_SIZE);
               }}
-              className="mt-4 px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+              className="btn btn-secondary mt-6"
             >
               Clear All Filters
             </button>
           )}
         </div>
       ) : (
-        /* Truck grid */
         <>
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="text-sm text-body mb-4">
             Showing {Math.min(visibleCount, filteredTrucks.length)} of {filteredTrucks.length} truck{filteredTrucks.length !== 1 ? 's' : ''}
             {location ? ' nearest to you' : ''}
           </p>
@@ -383,10 +368,10 @@ export default function TruckDiscovery() {
             ))}
           </div>
           {visibleCount < filteredTrucks.length && (
-            <div className="text-center mt-8">
+            <div className="text-center mt-10">
               <button
                 onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-                className="px-8 py-3 bg-white border-2 border-orange-200 text-orange-700 rounded-xl hover:bg-orange-50 hover:border-orange-300 transition-all font-medium text-sm shadow-sm"
+                className="btn btn-secondary"
               >
                 Load More ({filteredTrucks.length - visibleCount} remaining)
               </button>
