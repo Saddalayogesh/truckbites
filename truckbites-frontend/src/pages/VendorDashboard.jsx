@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getMyTrucks, updateTruckLocation, toggleTruckStatus, createTruck, updateTruck, deleteTruck, getTruckReviews, replyToReview, getOperatingHours, setOperatingHours } from '../api/truckApi';
+import { Link } from 'react-router-dom';
+import { getMyTrucks, updateTruckLocation, toggleTruckStatus, createTruck, updateTruck, deleteTruck, getTruckReviews, replyToReview, getOperatingHours, setOperatingHours, featureTruck } from '../api/truckApi';
 import { getMenuByTruck, addMenuItem, updateMenuItem, updateInventory, deleteMenuItem } from '../api/menuApi';
 import { getOrdersByTruck, updateOrderStatus, bulkUpdateOrderStatus } from '../api/orderApi';
+import { getVendorPlan } from '../api/userApi';
 import MapPicker from '../components/MapPicker';
 import { Truck, UtensilsCrossed, Star, AlarmClock, ClipboardList, Pencil, TriangleAlert } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { showConfirm } from '../utils/confirm';
 import logger from '../utils/logger';
+import { FEATURED_PROMOTIONS, formatINR, vendorPlanByPlan } from '../utils/pricing';
 
 const COMPONENT = 'VendorDashboard';
 const STATUS_FLOW = ['PLACED', 'PREPARING', 'READY', 'COMPLETED'];
@@ -47,11 +51,16 @@ function playNotificationSound() {
 }
 
 export default function VendorDashboard() {
+  const { user } = useAuth();
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState('truck');
   const [trucks, setTrucks] = useState([]);
   const [selectedTruckId, setSelectedTruckId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [vendorPlan, setVendorPlan] = useState(null);
+  const [promoteTruck, setPromoteTruck] = useState(null);
+  const [promotingDays, setPromotingDays] = useState(7);
+  const [promoting, setPromoting] = useState(false);
 
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
@@ -114,6 +123,17 @@ export default function VendorDashboard() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // Load the vendor's subscription plan for the dashboard banner
+  useEffect(() => {
+    let cancelled = false;
+    if (user?.id) {
+      getVendorPlan(user.id)
+        .then((res) => { if (!cancelled) setVendorPlan(res.data); })
+        .catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const selectedTruck = trucks.find((t) => t.id === selectedTruckId);
 
@@ -299,6 +319,21 @@ export default function VendorDashboard() {
       setStatusMsg('Status toggled to ' + res.data.status);
       addToast(`Truck is now ${res.data.status === 'OPEN' ? 'open' : 'closed'}`, res.data.status === 'OPEN' ? 'success' : 'info');
     } catch { setStatusMsg('Failed to toggle status'); addToast('Failed to toggle status', 'error'); }
+  };
+
+  const handlePromote = async () => {
+    if (!promoteTruck) return;
+    setPromoting(true);
+    try {
+      const res = await featureTruck(promoteTruck.id, promotingDays);
+      setTrucks((prev) => prev.map((t) => t.id === promoteTruck.id ? { ...t, featuredUntil: res.data.featuredUntil } : t));
+      addToast(`"${promoteTruck.name}" is now featured for ${promotingDays} days!`, 'success');
+      setPromoteTruck(null);
+    } catch (err) {
+      addToast('Failed to feature truck', 'error');
+    } finally {
+      setPromoting(false);
+    }
   };
 
   const resetMenuForm = () => {
@@ -630,6 +665,25 @@ export default function VendorDashboard() {
         </button>
       </div>
 
+      {/* Vendor plan banner */}
+      {vendorPlan && (
+        <div className="card p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{vendorPlanByPlan(vendorPlan.plan).emoji}</span>
+            <div>
+              <p className="text-sm font-heading font-semibold text-ink">{vendorPlan.displayName} Plan</p>
+              <p className="text-xs text-body">
+                Order commission: {vendorPlan.commissionPercent}%
+                {vendorPlan.active && vendorPlan.expiresAt ? ` · renews ${new Date(vendorPlan.expiresAt).toLocaleDateString()}` : ' · upgrade to pay less commission'}
+              </p>
+            </div>
+          </div>
+          <Link to="/pricing" className="btn btn-secondary btn-sm sm:ml-auto">
+            {vendorPlan.plan === 'FREE' ? 'Upgrade Plan' : 'Manage Plan'}
+          </Link>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-20">
           <div className="h-12 w-12 rounded-full border-4 border-primary border-t-transparent animate-spin" />
@@ -657,8 +711,18 @@ export default function VendorDashboard() {
               <div className="flex items-center justify-between px-6 py-4 border-b border-line">
                 <h2 className="text-xl font-heading font-semibold text-ink flex items-center gap-2">
                   <Truck className="w-5 h-5 text-primary" /> {selectedTruck.name}
+                  {selectedTruck.featuredUntil && new Date(selectedTruck.featuredUntil) > new Date() && (
+                    <span className="badge bg-accent/20 text-accentDark text-[11px]">⭐ Featured</span>
+                  )}
                 </h2>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setPromotingDays(7); setPromoteTruck(selectedTruck); }}
+                    className="btn btn-primary btn-sm"
+                  >
+                    <Star className="w-4 h-4 fill-current" strokeWidth={0} />
+                    Promote
+                  </button>
                   <button
                     onClick={openEditForm}
                     className="btn btn-ghost btn-sm"
@@ -1347,6 +1411,65 @@ export default function VendorDashboard() {
                 ) : (
                   <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Yes, Delete Truck</>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────── Promote Truck Modal ──────────── */}
+      {promoteTruck && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-4"
+          onClick={() => setPromoteTruck(null)}
+        >
+          <div
+            className="card shadow-card-hover max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Feature truck promotion"
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-line">
+              <h2 className="text-lg font-heading font-semibold text-ink flex items-center gap-2">
+                <Star className="w-5 h-5 text-accent fill-current" strokeWidth={0} />
+                Feature {promoteTruck.name}
+              </h2>
+              <button onClick={() => setPromoteTruck(null)} className="text-body/60 hover:text-ink transition-colors p-1 rounded-lg hover:bg-cream">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-body mb-4">
+                Get featured at the top of the Home page, Search Results and Category listings.
+              </p>
+              <div className="space-y-3">
+                {FEATURED_PROMOTIONS.map((promo) => (
+                  <label
+                    key={promo.days}
+                    className={`flex items-center gap-4 p-4 rounded-input border-2 cursor-pointer transition-all ${
+                      promotingDays === promo.days ? 'border-primary bg-primary/5' : 'border-line hover:border-primary/40'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="promoDays"
+                      checked={promotingDays === promo.days}
+                      onChange={() => setPromotingDays(promo.days)}
+                      className="accent-primary"
+                    />
+                    <span className="flex-1 text-ink font-medium">{promo.label}</span>
+                    <span className="font-heading font-bold text-primary">{formatINR(promo.price)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-line bg-cream rounded-b-card">
+              <button onClick={() => setPromoteTruck(null)} className="btn btn-secondary btn-sm">Cancel</button>
+              <button onClick={handlePromote} disabled={promoting} className="btn btn-primary btn-sm">
+                {promoting ? 'Processing...' : `Feature for ${promotingDays} days`}
               </button>
             </div>
           </div>

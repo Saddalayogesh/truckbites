@@ -68,6 +68,12 @@ public class Truck {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    /**
+     * Until when this truck is featured (promoted) in search/trending lists.
+     * Null when the truck is not currently promoted.
+     */
+    private LocalDateTime featuredUntil;
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();

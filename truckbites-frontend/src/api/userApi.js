@@ -32,6 +32,68 @@ export async function updateProfile(userId, data) {
   }
 }
 
+/**
+ * Get the customer's membership status and benefits.
+ */
+export async function getMembership(userId) {
+  logger.info(COMPONENT, 'Fetching membership', { userId });
+  try {
+    const response = await axiosClient.get('/users/membership', { params: { userId } });
+    logger.debug(COMPONENT, 'Membership fetched', { userId, tier: response.data?.tier });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to fetch membership', { userId, error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Subscribe (or upgrade) the customer's membership tier.
+ * @param {string} tier SILVER | GOLD | PLATINUM
+ */
+export async function subscribeMembership(userId, tier) {
+  logger.info(COMPONENT, 'Subscribing to membership', { userId, tier });
+  try {
+    const response = await axiosClient.post('/users/membership', null, { params: { userId, tier } });
+    logger.info(COMPONENT, 'Membership activated', { userId, tier });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to subscribe membership', { userId, tier, error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Get the vendor's subscription plan and commission rate.
+ */
+export async function getVendorPlan(userId) {
+  logger.info(COMPONENT, 'Fetching vendor plan', { userId });
+  try {
+    const response = await axiosClient.get('/users/vendor-plan', { params: { userId } });
+    logger.debug(COMPONENT, 'Vendor plan fetched', { userId, plan: response.data?.plan });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to fetch vendor plan', { userId, error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Subscribe (or upgrade) the vendor's plan.
+ * @param {string} plan STARTER | PRO | PREMIUM
+ */
+export async function subscribeVendorPlan(userId, plan) {
+  logger.info(COMPONENT, 'Subscribing to vendor plan', { userId, plan });
+  try {
+    const response = await axiosClient.post('/users/vendor-plan', null, { params: { userId, plan } });
+    logger.info(COMPONENT, 'Vendor plan activated', { userId, plan });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to subscribe vendor plan', { userId, plan, error: error.message });
+    throw error;
+  }
+}
+
 export async function forgotPassword(email) {
   logger.info(COMPONENT, 'Requesting password reset', { email });
   try {

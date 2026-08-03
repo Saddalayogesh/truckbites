@@ -19,6 +19,7 @@ const FavoritesPage = lazy(() => import('../pages/FavoritesPage'));
 const Profile = lazy(() => import('../pages/Profile'));
 const ForgotPassword = lazy(() => import('../pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('../pages/ResetPassword'));
+const Pricing = lazy(() => import('../pages/Pricing'));
 const NotFound = lazy(() => import('../pages/NotFound'));
 
 function SuspenseWrapper({ children }) {
@@ -40,6 +41,7 @@ export default function AppRoutes() {
       <Route path="/" element={<Home />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/pricing" element={<Pricing />} />
 
       {/* Customer-only routes (require auth) */}
       <Route path="/trucks/:id/menu" element={<TruckMenu />} />

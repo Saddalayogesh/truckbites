@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Slf4j
@@ -88,16 +90,16 @@ public class TruckService {
 
         if (latitude != null && longitude != null && radiusKm != null) {
             log.debug("Using nearby search with bounding box + Haversine filter");
-            return findNearbyTrucks(latitude, longitude, radiusKm);
+            return sortFeaturedFirst(findNearbyTrucks(latitude, longitude, radiusKm));
         }
 
         if (cuisineType != null && !cuisineType.isBlank()) {
             log.debug("Filtering by cuisineType: {}", cuisineType);
-            return truckRepository.findByCuisineTypeContainingIgnoreCase(cuisineType);
+            return sortFeaturedFirst(truckRepository.findByCuisineTypeContainingIgnoreCase(cuisineType));
         }
 
         log.debug("Returning all trucks");
-        return truckRepository.findAll();
+        return sortFeaturedFirst(truckRepository.findAll());
     }
 
     public List<Truck> getMyTrucks(Long ownerId) {
@@ -106,11 +108,57 @@ public class TruckService {
     }
 
     /**
-     * Returns the top 6 trending trucks ranked by average rating (descending).
+     * Returns the top 6 trending trucks ranked by average rating (descending),
+     * with currently-featured trucks surfaced first.
      */
     public List<Truck> getTrendingTrucks() {
         log.debug("Fetching top 6 trending trucks by average rating");
-        return truckRepository.findTop6ByOrderByAverageRatingDesc();
+        return sortFeaturedFirst(truckRepository.findTop6ByOrderByAverageRatingDesc());
+    }
+
+    /**
+     * Promotes a truck as featured for the given number of days.
+     * Supported durations: 7, 15 or 30 days. Re-promoting an active promotion
+     * extends it from the current expiry date.
+     */
+    @Transactional
+    public Truck featureTruck(Long id, Long ownerId, Integer days) {
+        if (days == null || (days != 7 && days != 15 && days != 30)) {
+            log.warn("Invalid promotion duration: {}", days);
+            throw new IllegalArgumentException("Promotion duration must be 7, 15 or 30 days");
+        }
+        log.debug("Promoting truck id: {} for {} days by ownerId: {}", id, days, ownerId);
+        Truck truck = truckRepository.findByIdAndOwnerId(id, ownerId)
+                .orElseThrow(() -> {
+                    log.warn("Truck not found or not owned by user: id={}, ownerId={}", id, ownerId);
+                    return new ResourceNotFoundException("Truck not found or access denied");
+                });
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime base = (truck.getFeaturedUntil() != null && truck.getFeaturedUntil().isAfter(now))
+                ? truck.getFeaturedUntil()
+                : now;
+        truck.setFeaturedUntil(base.plusDays(days));
+        Truck saved = truckRepository.save(truck);
+        log.info("Truck {} featured until {}", id, saved.getFeaturedUntil());
+        return saved;
+    }
+
+    /**
+     * Sorts trucks so that currently-featured promotions appear first
+     * (most recently promoted first), followed by non-featured trucks.
+     */
+    private List<Truck> sortFeaturedFirst(List<Truck> trucks) {
+        LocalDateTime now = LocalDateTime.now();
+        return trucks.stream()
+                .sorted(Comparator
+                        .comparing((Truck t) -> isFeatured(t, now), Comparator.reverseOrder())
+                        .thenComparing(t -> t.getFeaturedUntil() == null
+                                ? LocalDateTime.MIN : t.getFeaturedUntil(), Comparator.reverseOrder()))
+                .toList();
+    }
+
+    private boolean isFeatured(Truck truck, LocalDateTime now) {
+        return truck.getFeaturedUntil() != null && truck.getFeaturedUntil().isAfter(now);
     }
 
     private List<Truck> findNearbyTrucks(Double latitude, Double longitude, Double radiusKm) {

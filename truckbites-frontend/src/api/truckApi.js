@@ -98,6 +98,22 @@ export async function toggleTruckStatus(id) {
   }
 }
 
+/**
+ * Feature (promote) a truck for a number of days (7, 15 or 30).
+ * Requires VENDOR ownership of the truck.
+ */
+export async function featureTruck(truckId, days) {
+  logger.info(COMPONENT, 'Featuring truck', { truckId, days });
+  try {
+    const response = await axiosClient.post(`/trucks/${truckId}/feature`, null, { params: { days } });
+    logger.info(COMPONENT, 'Truck featured', { truckId, days, featuredUntil: response.data?.featuredUntil });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to feature truck', { truckId, days, error: error.message });
+    throw error;
+  }
+}
+
 export async function addFavorite(truckId) {
   logger.info(COMPONENT, 'Adding favorite', { truckId });
   const response = await axiosClient.post(`/favorites/${truckId}`);

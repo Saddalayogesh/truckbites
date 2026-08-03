@@ -14,10 +14,17 @@ const formatPrice = (price) => {
 export default function MenuItemCard({ item, truckId, truck }) {
   const navigate = useNavigate();
   const { token } = useAuth();
-  const { addItem } = useCart();
+  const { items, addItem, updateQuantity } = useCart();
   const { addToast } = useToast();
   const outOfStock = !item.isAvailable || (item.quantityAvailable != null && item.quantityAvailable <= 0);
   const prepMins = item.prepTimeMinutes ?? truck?.estimatedPrepTimeMinutes;
+
+  // Existing cart line for this item (menuItemId + truckId)
+  const cartItem = items.find(
+    (i) => i.menuItemId === item.id && i.truckId === truckId
+  );
+  const maxQty = item.quantityAvailable != null ? item.quantityAvailable : Number.MAX_SAFE_INTEGER;
+  const isAtMax = cartItem ? cartItem.quantity >= maxQty : false;
 
   const handleAddToCart = () => {
     // Guests must sign in before adding items to the cart
@@ -26,8 +33,17 @@ export default function MenuItemCard({ item, truckId, truck }) {
       navigate('/login', { state: { from: 'cart' } });
       return;
     }
-    addItem(item, truckId);
+    addItem(item, truckId, 1, truck?.name);
     addToast(`${item.name} added to cart`, 'success');
+  };
+
+  const handleDecrease = () => {
+    updateQuantity(cartItem.cartItemId, cartItem.quantity - 1);
+  };
+
+  const handleIncrease = () => {
+    if (isAtMax) return;
+    updateQuantity(cartItem.cartItemId, cartItem.quantity + 1);
   };
 
   return (
@@ -85,12 +101,40 @@ export default function MenuItemCard({ item, truckId, truck }) {
           </p>
         )}
 
-        {/* Add to Cart button */}
+        {/* Add to Cart / quantity stepper */}
         <div className="mt-4 pt-4 border-t border-line">
           {outOfStock ? (
             <span className="block w-full text-center h-[46px] leading-[46px] rounded-full text-sm font-heading font-semibold bg-line/60 text-body/70 cursor-not-allowed">
               {item.isAvailable === false ? 'Unavailable' : 'Out of Stock'}
             </span>
+          ) : cartItem ? (
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={handleDecrease}
+                aria-label={`Decrease quantity of ${item.name}`}
+                title="Decrease quantity"
+                className="w-11 h-11 rounded-full border border-line flex items-center justify-center text-body hover:bg-primary hover:text-white hover:border-primary active:scale-[1.03] transition-all text-xl font-medium"
+              >
+                −
+              </button>
+              <div className="text-center min-w-[44px]">
+                <span className="block font-heading font-bold text-ink text-lg leading-none">
+                  {cartItem.quantity}
+                </span>
+                <span className="block text-[10px] uppercase tracking-wider text-body/60 mt-1">
+                  in cart
+                </span>
+              </div>
+              <button
+                onClick={handleIncrease}
+                disabled={isAtMax}
+                aria-label={`Increase quantity of ${item.name}`}
+                title={isAtMax ? 'No more in stock' : 'Increase quantity'}
+                className="w-11 h-11 rounded-full border border-line flex items-center justify-center text-body hover:bg-primary hover:text-white hover:border-primary active:scale-[1.03] transition-all text-xl font-medium disabled:opacity-40 disabled:pointer-events-none"
+              >
+                +
+              </button>
+            </div>
           ) : (
             <button
               onClick={handleAddToCart}

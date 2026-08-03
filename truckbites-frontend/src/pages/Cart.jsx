@@ -1,8 +1,13 @@
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
+import { getTruckById } from '../api/truckApi';
+import { getMembership } from '../api/userApi';
+import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../components/Toast';
 import { showConfirm } from '../utils/confirm';
+import { NON_MEMBER, formatINR, estimateCartPricing } from '../utils/pricing';
 
 const formatPrice = (price) => {
   return new Intl.NumberFormat('en-US', {
@@ -14,7 +19,55 @@ const formatPrice = (price) => {
 export default function Cart() {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const { items, itemsByTruck, removeItem, updateQuantity, clearCart, total, itemCount, truckIds } = useCart();
+  const { user } = useAuth();
+  const { items, itemsByTruck, removeItem, updateQuantity, clearCart, itemCount, truckIds } = useCart();
+  const [membership, setMembership] = useState(NON_MEMBER);
+
+  // Load the customer's membership tier so fees/GST can be estimated at a glance
+  useEffect(() => {
+    let cancelled = false;
+    if (user?.id) {
+      getMembership(user.id)
+        .then((res) => { if (!cancelled && res.data) setMembership(res.data); })
+        .catch(() => {});
+    }
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  // Fee/GST are charged per order (per truck), so estimate per truck and sum
+  const pricing = useMemo(
+    () => estimateCartPricing(truckIds, itemsByTruck, membership),
+    [truckIds, itemsByTruck, membership]
+  );
+
+  // Resolve truck display names. Cart items store the truck name going forward,
+  // but legacy carts only have truckId — fetch any missing names once.
+  const [truckNames, setTruckNames] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const known = { ...truckNames };
+    items.forEach((i) => { if (i.truckName) known[i.truckId] = i.truckName; });
+    const missing = truckIds.filter((id) => !known[id]);
+    if (missing.length === 0) return () => { cancelled = true; };
+
+    Promise.all(
+      missing.map((truckId) =>
+        getTruckById(truckId)
+          .then((r) => ({ id: truckId, name: r?.data?.name || null }))
+          .catch(() => ({ id: truckId, name: null }))
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const found = results.filter((r) => r.name && !known[r.id]);
+      if (found.length > 0) {
+        found.forEach((r) => { known[r.id] = r.name; });
+        setTruckNames({ ...known });
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [truckIds, items, truckNames]);
 
   const handleClearCart = async () => {
     const confirmed = await showConfirm({
@@ -85,7 +138,13 @@ export default function Cart() {
                     <circle cx="17.5" cy="16.5" r="1.8" />
                   </svg>
                 </span>
-                <h2 className="text-white font-heading font-semibold text-lg">Truck #{truckId}</h2>
+                <Link
+                  to={`/trucks/${truckId}/menu`}
+                  className="text-white font-heading font-semibold text-lg hover:underline underline-offset-4 transition-colors"
+                  title="View truck menu"
+                >
+                  {truckNames[truckId] || truckItems[0]?.truckName || `Truck #${truckId}`}
+                </Link>
               </div>
               <div className="divide-y divide-line">
                 {truckItems.map((cartItem) => (
@@ -149,20 +208,33 @@ export default function Cart() {
       <div className="card p-6 lg:p-8 sticky bottom-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-body">Items ({itemCount})</span>
-          <span className="text-ink font-medium">{formatPrice(total)}</span>
+          <span className="text-ink font-medium">{formatPrice(pricing.subtotal)}</span>
+        </div>
+        {pricing.discount > 0 && (
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-body">Member Discount ({membership.discountPercent || 0}%)</span>
+            <span className="text-success font-medium">−{formatINR(pricing.discount)}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-body">Platform Fee</span>
+          <span className="text-ink font-medium">{formatINR(pricing.platformFee)}</span>
+        </div>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-body">GST</span>
+          <span className="text-ink font-medium">{formatINR(pricing.gst)}</span>
         </div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-body">Delivery Fee</span>
           <span className="text-success font-medium">Free</span>
         </div>
-        <div className="flex items-center justify-between mb-6">
-          <span className="text-body">Tax</span>
-          <span className="text-success font-medium">Included</span>
-        </div>
-        <div className="border-t border-line pt-4 flex items-center justify-between mb-6">
+        <div className="border-t border-line pt-4 flex items-center justify-between mb-2">
           <span className="text-xl font-heading font-bold text-ink">Total</span>
-          <span className="text-xl font-heading font-bold text-primary">{formatPrice(total)}</span>
+          <span className="text-xl font-heading font-bold text-primary">{formatPrice(pricing.total)}</span>
         </div>
+        <p className="text-[11px] text-body/60 mb-6">
+          Platform fee & GST charged in INR (₹) per order.
+        </p>
         <button
           onClick={() => navigate('/checkout')}
           className="btn btn-primary btn-block"

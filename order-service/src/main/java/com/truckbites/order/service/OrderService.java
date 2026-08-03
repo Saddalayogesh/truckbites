@@ -6,6 +6,9 @@ import com.truckbites.order.client.MenuItemDto;
 import com.truckbites.order.client.MenuServiceClient;
 import com.truckbites.order.client.TruckDto;
 import com.truckbites.order.client.TruckServiceClient;
+import com.truckbites.order.client.UserMembershipDto;
+import com.truckbites.order.client.UserServiceClient;
+import com.truckbites.order.client.UserVendorPlanDto;
 import com.truckbites.order.dto.CreateOrderRequest;
 import com.truckbites.order.dto.OrderResponse;
 import com.truckbites.order.dto.OrderStatusUpdateRequest;
@@ -22,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +37,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MenuServiceClient menuServiceClient;
     private final TruckServiceClient truckServiceClient;
+    private final UserServiceClient userServiceClient;
     private final OrderEventPublisher eventPublisher;
 
     /**
@@ -113,16 +118,39 @@ public class OrderService {
             items.add(orderItem);
         }
 
-        // Calculate total from item price snapshots
-        BigDecimal totalAmount = items.stream()
+        // Calculate food subtotal from item price snapshots
+        BigDecimal subtotal = items.stream()
                 .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Revenue model: membership discount + platform fee + GST (5% food, 18% fee)
+        UserMembershipDto membership = resolveMembership(customerId);
+        BigDecimal discount = subtotal
+                .multiply(BigDecimal.valueOf(membership.getDiscountPercent()))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal platformFee = membership.getPlatformFeePerOrder() != null
+                ? membership.getPlatformFeePerOrder()
+                : BigDecimal.ZERO;
+        BigDecimal gstAmount = PricingRules.gstOf(subtotal, PricingRules.GST_FOOD_RATE)
+                .add(PricingRules.gstOf(platformFee, PricingRules.GST_PLATFORM_FEE_RATE));
+        BigDecimal totalAmount = PricingRules.money(
+                subtotal.subtract(discount).add(platformFee).add(gstAmount));
+
+        // Platform commission based on the vendor's subscription plan
+        BigDecimal commissionAmount = resolveCommission(request.getTruckId(), subtotal);
 
         Order order = Order.builder()
                 .customerId(customerId)
                 .customerEmail(request.getCustomerEmail())
                 .truckId(request.getTruckId())
                 .totalAmount(totalAmount)
+                .subtotalAmount(PricingRules.money(subtotal))
+                .discountAmount(discount)
+                .platformFee(platformFee)
+                .gstAmount(gstAmount)
+                .commissionAmount(commissionAmount)
+                .membershipTier(membership.getTier())
+                .priority(membership.isPriorityProcessing())
                 .notes(request.getNotes())
                 .status(OrderStatus.PLACED)
                 .items(items)
@@ -302,11 +330,81 @@ public class OrderService {
                 .id(order.getId())
                 .customerId(order.getCustomerId())
                 .truckId(order.getTruckId())
+                .truckName(resolveTruckName(order.getTruckId()))
                 .totalAmount(order.getTotalAmount())
+                .subtotalAmount(order.getSubtotalAmount())
+                .discountAmount(order.getDiscountAmount())
+                .platformFee(order.getPlatformFee())
+                .gstAmount(order.getGstAmount())
+                .commissionAmount(order.getCommissionAmount())
+                .membershipTier(order.getMembershipTier())
+                .priority(order.getPriority())
                 .notes(order.getNotes())
                 .status(order.getStatus())
                 .createdAt(order.getCreatedAt())
                 .items(itemResponses)
                 .build();
+    }
+
+    /**
+     * Resolves the customer's membership benefits, degrading gracefully to a
+     * non-member (full platform fee, no discount) when user-service is down
+     * or the membership is inactive/expired.
+     */
+    private UserMembershipDto resolveMembership(Long customerId) {
+        try {
+            UserMembershipDto membership = userServiceClient.getMembership(customerId);
+            if (membership != null && membership.isActive()) {
+                return membership;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve membership for customerId {}: {}", customerId, e.getMessage());
+        }
+        return UserMembershipDto.builder()
+                .tier("NONE")
+                .active(false)
+                .platformFeePerOrder(new BigDecimal("15.00"))
+                .discountPercent(0)
+                .priorityProcessing(false)
+                .build();
+    }
+
+    /**
+     * Resolves the platform commission for the vendor fulfilling the order,
+     * based on the vendor's subscription plan (10% FREE ... 5% PREMIUM).
+     * Degrades gracefully to zero commission if lookups fail.
+     */
+    private BigDecimal resolveCommission(Long truckId, BigDecimal subtotal) {
+        try {
+            TruckDto truck = truckServiceClient.getTruckById(truckId);
+            if (truck == null || truck.getOwnerId() == null) {
+                return BigDecimal.ZERO;
+            }
+            UserVendorPlanDto vendorPlan = userServiceClient.getVendorPlan(truck.getOwnerId());
+            int pct = vendorPlan != null ? vendorPlan.getCommissionPercent() : 10;
+            if (pct <= 0) {
+                return BigDecimal.ZERO;
+            }
+            return subtotal.multiply(BigDecimal.valueOf(pct))
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        } catch (Exception e) {
+            log.warn("Failed to resolve commission for truckId {}: {}", truckId, e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+
+    /**
+     * Resolves the display name of the truck fulfilling an order. Degrades
+     * gracefully to null (clients can then fall back to the truck id) when
+     * truck-service is unreachable or the truck no longer exists.
+     */
+    private String resolveTruckName(Long truckId) {
+        try {
+            TruckDto truck = truckServiceClient.getTruckById(truckId);
+            return truck != null ? truck.getName() : null;
+        } catch (Exception e) {
+            log.warn("Failed to resolve truck name for truckId {}: {}", truckId, e.getMessage());
+            return null;
+        }
     }
 }
