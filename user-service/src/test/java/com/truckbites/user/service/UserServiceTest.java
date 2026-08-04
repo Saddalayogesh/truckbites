@@ -1,16 +1,20 @@
 package com.truckbites.user.service;
 
+import com.truckbites.common.exception.BadRequestException;
 import com.truckbites.common.exception.ResourceNotFoundException;
+import com.truckbites.user.model.MembershipTier;
 import com.truckbites.user.model.UserProfile;
+import com.truckbites.user.model.VendorPlan;
 import com.truckbites.user.repository.UserProfileRepository;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -151,6 +155,157 @@ class UserServiceTest {
 
         verify(userProfileRepository).findByUserId(userId);
         verify(userProfileRepository, times(2)).save(any(UserProfile.class));
+    }
+
+    @Test
+    @DisplayName("Should cancel an active membership back to NONE")
+    void cancelMembership_shouldRevertToNone() {
+        // Arrange
+        Long userId = 1L;
+        UserProfile profile = UserProfile.builder()
+                .id(1L)
+                .userId(userId)
+                .membershipTier(MembershipTier.GOLD)
+                .membershipExpiresAt(LocalDateTime.now().plusMonths(1))
+                .membershipCouponsRemaining(2)
+                .build();
+
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(userProfileRepository.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        var result = userService.cancelMembership(userId);
+
+        // Assert
+        assertThat(result.getTier()).isEqualTo("NONE");
+        assertThat(result.getDisplayName()).isEqualTo("Non-Member");
+        assertThat(result.isActive()).isFalse();
+        assertThat(result.getExpiresAt()).isNull();
+        assertThat(profile.getMembershipCouponsRemaining()).isZero();
+        assertThat(profile.getMembershipTier()).isEqualTo(MembershipTier.NONE);
+        assertThat(profile.getMembershipExpiresAt()).isNull();
+
+        verify(userProfileRepository).findByUserId(userId);
+        verify(userProfileRepository).save(any(UserProfile.class));
+    }
+
+    @Test
+    @DisplayName("Should cancel an active vendor plan back to FREE")
+    void cancelVendorPlan_shouldRevertToFree() {
+        // Arrange
+        Long userId = 1L;
+        UserProfile profile = UserProfile.builder()
+                .id(1L)
+                .userId(userId)
+                .vendorPlan(VendorPlan.PRO)
+                .vendorPlanExpiresAt(LocalDateTime.now().plusMonths(1))
+                .build();
+
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(userProfileRepository.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        var result = userService.cancelVendorPlan(userId);
+
+        // Assert
+        assertThat(result.getPlan()).isEqualTo("FREE");
+        assertThat(result.getDisplayName()).isEqualTo("Free");
+        assertThat(result.isActive()).isFalse();
+        assertThat(result.getExpiresAt()).isNull();
+        assertThat(result.getCommissionPercent()).isEqualTo(10);
+        assertThat(profile.getVendorPlan()).isEqualTo(VendorPlan.FREE);
+        assertThat(profile.getVendorPlanExpiresAt()).isNull();
+
+        verify(userProfileRepository).findByUserId(userId);
+        verify(userProfileRepository).save(any(UserProfile.class));
+    }
+
+    @Test
+    @DisplayName("Should activate membership when a valid UTR is provided")
+    void subscribeMembership_shouldActivate_whenValidUtr() {
+        // Arrange
+        Long userId = 1L;
+        UserProfile profile = UserProfile.builder()
+                .id(1L)
+                .userId(userId)
+                .membershipTier(MembershipTier.NONE)
+                .build();
+
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(userProfileRepository.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        var result = userService.subscribeMembership(userId, MembershipTier.GOLD, "TXN-PLAN123");
+
+        // Assert
+        assertThat(result.getTier()).isEqualTo("GOLD");
+        assertThat(result.isActive()).isTrue();
+        assertThat(profile.getMembershipTier()).isEqualTo(MembershipTier.GOLD);
+        assertThat(profile.getMembershipExpiresAt()).isNotNull();
+
+        verify(userProfileRepository).save(any(UserProfile.class));
+    }
+
+    @Test
+    @DisplayName("Should reject membership subscription when UTR is missing or invalid")
+    void subscribeMembership_shouldReject_whenUtrInvalid() {
+        // Arrange
+        Long userId = 1L;
+
+        // Act & Assert
+        assertThatThrownBy(() -> userService.subscribeMembership(userId, MembershipTier.GOLD, null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Payment could not be verified");
+        assertThatThrownBy(() -> userService.subscribeMembership(userId, MembershipTier.GOLD, "abc"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Payment could not be verified");
+
+        verify(userProfileRepository, never()).findByUserId(any());
+        verify(userProfileRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should activate vendor plan when a valid UTR is provided")
+    void subscribeVendorPlan_shouldActivate_whenValidUtr() {
+        // Arrange
+        Long userId = 1L;
+        UserProfile profile = UserProfile.builder()
+                .id(1L)
+                .userId(userId)
+                .vendorPlan(VendorPlan.FREE)
+                .build();
+
+        when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(userProfileRepository.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        var result = userService.subscribeVendorPlan(userId, VendorPlan.PRO, "TXN-PLAN123");
+
+        // Assert
+        assertThat(result.getPlan()).isEqualTo("PRO");
+        assertThat(result.isActive()).isTrue();
+        assertThat(profile.getVendorPlan()).isEqualTo(VendorPlan.PRO);
+        assertThat(profile.getVendorPlanExpiresAt()).isNotNull();
+
+        verify(userProfileRepository).save(any(UserProfile.class));
+    }
+
+    @Test
+    @DisplayName("Should reject vendor plan subscription when UTR is missing or invalid")
+    void subscribeVendorPlan_shouldReject_whenUtrInvalid() {
+        // Arrange
+        Long userId = 1L;
+
+        // Act & Assert
+        assertThatThrownBy(() -> userService.subscribeVendorPlan(userId, VendorPlan.PRO, null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Payment could not be verified");
+        assertThatThrownBy(() -> userService.subscribeVendorPlan(userId, VendorPlan.PRO, "123"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Payment could not be verified");
+
+        verify(userProfileRepository, never()).findByUserId(any());
+        verify(userProfileRepository, never()).save(any());
     }
 
     @Test

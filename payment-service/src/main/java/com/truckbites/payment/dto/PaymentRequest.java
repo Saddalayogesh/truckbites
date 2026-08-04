@@ -28,4 +28,9 @@ public class PaymentRequest {
     @Schema(description = "Customer email for payment receipt notifications", example = "customer@example.com")
     @Email(message = "Customer email must be a valid email address")
     private String customerEmail;
+
+    @Schema(description = "UPI transaction reference (UTR) from the customer's UPI app. " +
+            "Used to verify the payment was actually completed — required for the mock gateway to succeed.",
+            example = "123456789012")
+    private String transactionRef;
 }

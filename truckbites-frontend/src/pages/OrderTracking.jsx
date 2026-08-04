@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getOrderById, getMyOrders, cancelOrder } from '../api/orderApi';
 import { getTruckById } from '../api/truckApi';
+import { getPaymentsByOrder } from '../api/paymentApi';
 import { useToast } from '../components/Toast';
 import { showConfirm } from '../utils/confirm';
 import logger from '../utils/logger';
-import { ClipboardList, ChefHat, CircleCheck, PartyPopper, NotebookPen, Clock, XCircle, X, TriangleAlert, Package } from 'lucide-react';
+import { ClipboardList, ChefHat, CircleCheck, PartyPopper, NotebookPen, Clock, XCircle, X, TriangleAlert, Package, Truck } from 'lucide-react';
 
 const COMPONENT = 'OrderTracking';
 
@@ -66,6 +67,21 @@ function OrderCard({ order, onCancel }) {
   const [estimatedPrepMins, setEstimatedPrepMins] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState(null);
+  const [payment, setPayment] = useState(null);
+
+  // Fetch the verified payment for this order so the customer can confirm it went through.
+  useEffect(() => {
+    let cancelled = false;
+    getPaymentsByOrder(order.id)
+      .then((res) => {
+        if (cancelled) return;
+        const payments = res.data || [];
+        // Prefer a verified SUCCESS record; otherwise show the most recent one.
+        setPayment(payments.find((p) => p.status === 'SUCCESS') || payments[0] || null);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [order.id]);
 
   const canCancel = order.status === 'PLACED' && !isCancelled;
 
@@ -110,6 +126,10 @@ function OrderCard({ order, onCancel }) {
       <div className="bg-gradient-to-r from-primary to-primary-dark px-6 py-4 flex items-center justify-between">
         <div>
           <h3 className="text-white font-heading font-semibold">Order #{order.id}</h3>
+          <p className="text-white/90 text-sm mt-0.5 inline-flex items-center gap-1.5">
+            <Truck className="w-4 h-4" strokeWidth={2} />
+            {order.truckName || ('Truck #' + order.truckId)}
+          </p>
           <p className="text-white/80 text-sm mt-0.5">{formatDate(order.createdAt)}</p>
         </div>
         <span className={'px-3 py-1 rounded-full text-xs font-heading font-semibold uppercase tracking-wide shadow-sm ' +
@@ -168,6 +188,42 @@ function OrderCard({ order, onCancel }) {
                 </p>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Payment status — lets the customer verify payment went through */}
+        {payment && (
+          <div
+            className={'mb-4 rounded-input px-4 py-3 flex items-center justify-between gap-3 border ' +
+              (payment.status === 'SUCCESS'
+                ? 'bg-success/10 border-success/30'
+                : payment.status === 'FAILED'
+                  ? 'bg-error/10 border-error/30'
+                  : 'bg-warning/10 border-warning/30')
+            }
+          >
+            <div className="flex items-center gap-2.5">
+              {payment.status === 'SUCCESS' ? (
+                <CircleCheck className="w-5 h-5 text-success flex-shrink-0" strokeWidth={2.2} />
+              ) : payment.status === 'FAILED' ? (
+                <XCircle className="w-5 h-5 text-error flex-shrink-0" strokeWidth={2.2} />
+              ) : (
+                <Clock className="w-5 h-5 text-warning flex-shrink-0" strokeWidth={2.2} />
+              )}
+              <div>
+                <p className={'text-sm font-heading font-semibold ' +
+                  (payment.status === 'SUCCESS' ? 'text-success' : payment.status === 'FAILED' ? 'text-error' : 'text-warning')
+                }>
+                  {payment.status === 'SUCCESS' ? 'Payment verified' : payment.status === 'FAILED' ? 'Payment not verified' : 'Payment pending'}
+                </p>
+                {payment.transactionRef && (
+                  <p className="text-xs text-body/70 mt-0.5 font-mono">TXN {payment.transactionRef}</p>
+                )}
+              </div>
+            </div>
+            <span className="text-sm font-medium text-body">
+              {payment.status === 'SUCCESS' ? 'Paid' : formatPrice(order.totalAmount)}
+            </span>
           </div>
         )}
 

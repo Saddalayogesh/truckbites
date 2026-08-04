@@ -1,6 +1,7 @@
 package com.truckbites.user.service;
 
 import com.truckbites.common.exception.ResourceNotFoundException;
+import com.truckbites.common.payment.PaymentVerification;
 import com.truckbites.user.dto.MembershipResponse;
 import com.truckbites.user.dto.VendorPlanResponse;
 import com.truckbites.user.model.MembershipTier;
@@ -82,9 +83,12 @@ public class UserService {
     /**
      * Activates (or upgrades) a membership tier for one month.
      * Renewing an already-active tier extends from the current expiry date.
+     * The plan only activates once the customer's UPI payment is verified via
+     * the supplied transaction reference (UTR).
      */
     @Transactional
-    public MembershipResponse subscribeMembership(Long userId, MembershipTier tier) {
+    public MembershipResponse subscribeMembership(Long userId, MembershipTier tier, String transactionRef) {
+        PaymentVerification.requireValidUtr(transactionRef);
         log.info("Subscribing userId={} to membership tier {}", userId, tier);
         UserProfile profile = getOrCreateProfile(userId);
 
@@ -105,6 +109,21 @@ public class UserService {
     }
 
     /**
+     * Immediately cancels the user's membership, reverting to NONE (non-member).
+     */
+    @Transactional
+    public MembershipResponse cancelMembership(Long userId) {
+        log.info("Cancelling membership for userId={}", userId);
+        UserProfile profile = getOrCreateProfile(userId);
+        profile.setMembershipTier(MembershipTier.NONE);
+        profile.setMembershipExpiresAt(null);
+        profile.setMembershipCouponsRemaining(0);
+        UserProfile saved = userProfileRepository.save(profile);
+        log.info("Membership cancelled for userId={}: tier=NONE", userId);
+        return toMembershipResponse(saved);
+    }
+
+    /**
      * Returns the vendor's subscription plan and commission rate.
      * Degrades gracefully to FREE when no profile exists.
      */
@@ -113,13 +132,15 @@ public class UserService {
         UserProfile profile = getOrCreateProfile(userId);
         return toVendorPlanResponse(profile);
     }
-
     /**
      * Activates (or upgrades) a vendor subscription plan for one month.
      * Renewing an already-active plan extends from the current expiry date.
+     * The plan only activates once the vendor's UPI payment is verified via
+     * the supplied transaction reference (UTR).
      */
     @Transactional
-    public VendorPlanResponse subscribeVendorPlan(Long userId, VendorPlan plan) {
+    public VendorPlanResponse subscribeVendorPlan(Long userId, VendorPlan plan, String transactionRef) {
+        PaymentVerification.requireValidUtr(transactionRef);
         log.info("Subscribing userId={} to vendor plan {}", userId, plan);
         UserProfile profile = getOrCreateProfile(userId);
 
@@ -135,6 +156,20 @@ public class UserService {
         UserProfile saved = userProfileRepository.save(profile);
         log.info("Vendor plan activated for userId={}: plan={}, expires={}",
                 userId, plan, saved.getVendorPlanExpiresAt());
+        return toVendorPlanResponse(saved);
+    }
+
+    /**
+     * Immediately cancels the vendor's paid plan, reverting to FREE.
+     */
+    @Transactional
+    public VendorPlanResponse cancelVendorPlan(Long userId) {
+        log.info("Cancelling vendor plan for userId={}", userId);
+        UserProfile profile = getOrCreateProfile(userId);
+        profile.setVendorPlan(VendorPlan.FREE);
+        profile.setVendorPlanExpiresAt(null);
+        UserProfile saved = userProfileRepository.save(profile);
+        log.info("Vendor plan cancelled for userId={}: plan=FREE", userId);
         return toVendorPlanResponse(saved);
     }
 

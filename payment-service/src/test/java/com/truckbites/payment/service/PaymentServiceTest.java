@@ -63,6 +63,7 @@ class PaymentServiceTest {
             request.setOrderId(1L);
             request.setAmount(BigDecimal.valueOf(25.00));
             request.setMethod("CARD");
+            request.setTransactionRef("TXN-TEST123");
 
             Payment savedPayment = Payment.builder()
                     .id(1L)
@@ -70,7 +71,7 @@ class PaymentServiceTest {
                     .amount(BigDecimal.valueOf(25.00))
                     .status(PaymentStatus.SUCCESS)
                     .method("CARD")
-                    .transactionRef("TXN-TEST123")
+                    .transactionRef("TXN-TEST123-1")
                     .createdAt(LocalDateTime.now())
                     .build();
 
@@ -86,11 +87,43 @@ class PaymentServiceTest {
             assertThat(response.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(25.00));
             assertThat(response.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
             assertThat(response.getMethod()).isEqualTo("CARD");
-            assertThat(response.getTransactionRef()).isEqualTo("TXN-TEST123");
+            assertThat(response.getTransactionRef()).isEqualTo("TXN-TEST123-1");
             assertThat(response.getCreatedAt()).isNotNull();
 
             verify(paymentRepository).save(any(Payment.class));
             verify(eventPublisher).publishOrderPaid(any());
+        }
+
+        @Test
+        @DisplayName("should fail payment when UPI transaction reference is missing")
+        void shouldFailPaymentWhenTransactionRefMissing() {
+            // Given
+            PaymentRequest request = new PaymentRequest();
+            request.setOrderId(1L);
+            request.setAmount(BigDecimal.valueOf(25.00));
+            request.setMethod("UPI");
+            // No transactionRef supplied — payment cannot be verified
+
+            Payment savedPayment = Payment.builder()
+                    .id(5L)
+                    .orderId(1L)
+                    .amount(BigDecimal.valueOf(25.00))
+                    .status(PaymentStatus.FAILED)
+                    .method("UPI")
+                    .transactionRef("TXN-GEN")
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+
+            // When
+            PaymentResponse response = paymentService.processPayment(request);
+
+            // Then
+            assertThat(response.getStatus()).isEqualTo(PaymentStatus.FAILED);
+            verify(paymentRepository).save(paymentCaptor.capture());
+            assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.FAILED);
+            verify(eventPublisher, never()).publishOrderPaid(any());
         }
 
         @Test
@@ -101,6 +134,7 @@ class PaymentServiceTest {
             request.setOrderId(1L);
             request.setAmount(BigDecimal.ZERO);
             request.setMethod("CARD");
+            request.setTransactionRef("TXN-ZERO123");
 
             Payment savedPayment = Payment.builder()
                     .id(2L)
@@ -134,6 +168,7 @@ class PaymentServiceTest {
             request.setOrderId(1L);
             request.setAmount(BigDecimal.valueOf(-10.00));
             request.setMethod("CARD");
+            request.setTransactionRef("TXN-NEG1234");
 
             Payment savedPayment = Payment.builder()
                     .id(3L)
@@ -166,6 +201,7 @@ class PaymentServiceTest {
             request.setOrderId(42L);
             request.setAmount(BigDecimal.valueOf(15.50));
             request.setMethod("UPI");
+            request.setTransactionRef("TXN-UPI123");
 
             Payment savedPayment = Payment.builder()
                     .id(4L)
@@ -190,6 +226,8 @@ class PaymentServiceTest {
             assertThat(captured.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(15.50));
             assertThat(captured.getMethod()).isEqualTo("UPI");
             assertThat(captured.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+            // The customer-provided UTR is stored, suffixed with the orderId to stay unique
+            assertThat(captured.getTransactionRef()).isEqualTo("TXN-UPI123-42");
         }
     }
 

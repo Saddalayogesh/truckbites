@@ -61,6 +61,10 @@ export default function Navbar() {
     path === '/'
       ? location.pathname === '/'
       : location.pathname.startsWith(path);
+  const isActiveExact = (path) => location.pathname === path;
+  const vendorTabActive = (tab) => location.pathname === '/vendor/' + tab;
+  const adminTabActive = (tab) => location.pathname === '/admin/' + tab;
+  const brandHome = token && role === 'VENDOR' ? '/vendor' : token && role === 'ADMIN' ? '/admin' : '/';
 
   // Navigate to the home page, then scroll to a section anchor
   const goToSection = (id) => {
@@ -75,6 +79,8 @@ export default function Navbar() {
   const handleBell = () => {
     if (role === 'CUSTOMER') {
       navigate('/order-history');
+    } else if (role === 'VENDOR') {
+      navigate('/vendor/orders');
     } else {
       addToast('No new notifications', 'info');
     }
@@ -105,7 +111,7 @@ export default function Navbar() {
       <div className="container-app">
         <div className="flex justify-between h-[72px] items-center">
           {/* Brand */}
-          <Link to="/" className="flex items-center gap-2.5 group">
+          <Link to={brandHome} className="flex items-center gap-2.5 group">
             <TruckMark />
             <span className="text-xl font-heading font-bold text-ink tracking-tight group-hover:text-primary transition-colors">
               Truck<span className="text-primary">Bites</span>
@@ -113,13 +119,50 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop links */}
-          <div className="hidden lg:flex items-center gap-6">
-            <NavLink to="/" active={isActive('/')}>Home</NavLink>
-            <NavLink to="/discover" active={isActive('/discover')}>Discover</NavLink>
-            <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
-            {sectionLink('Categories', 'categories')}
-            {sectionLink('Map', 'map')}
-            <NavLink to="/orders" active={isActive('/orders')}>Orders</NavLink>
+          <div className="hidden lg:flex items-center gap-3">
+            {!token && (
+              <>
+                <NavLink to="/" active={isActive('/')}>Home</NavLink>
+                <NavLink to="/discover" active={isActive('/discover')}>Discover</NavLink>
+                <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
+                {sectionLink('Categories', 'categories')}
+                {sectionLink('Map', 'map')}
+              </>
+            )}
+            {token && role === 'CUSTOMER' && (
+              <>
+                <NavLink to="/" active={isActive('/')}>Home</NavLink>
+                <NavLink to="/discover" active={isActive('/discover')}>Discover</NavLink>
+                <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
+                {sectionLink('Categories', 'categories')}
+                {sectionLink('Map', 'map')}
+                <NavLink to="/orders" active={isActive('/orders')}>Orders</NavLink>
+                <NavLink to="/favorites" active={isActive('/favorites')}>Favorites</NavLink>
+                <NavLink to="/order-history" active={isActive('/order-history')}>History</NavLink>
+              </>
+            )}
+            {token && role === 'VENDOR' && (
+              <>
+                <NavLink to="/vendor" active={isActiveExact('/vendor')}>Dashboard</NavLink>
+                <NavLink to="/vendor/truck" active={vendorTabActive('truck')}>My Truck</NavLink>
+                <NavLink to="/vendor/menu" active={vendorTabActive('menu')}>Menu</NavLink>
+                <NavLink to="/vendor/orders" active={vendorTabActive('orders')}>Orders</NavLink>
+                <NavLink to="/vendor/reviews" active={vendorTabActive('reviews')}>Reviews</NavLink>
+                <NavLink to="/vendor/hours" active={vendorTabActive('hours')}>Hours</NavLink>
+                <NavLink to="/vendor/analytics" active={isActiveExact('/vendor/analytics')}>Analytics</NavLink>
+                <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
+              </>
+            )}
+            {token && role === 'ADMIN' && (
+              <>
+                <NavLink to="/admin" active={isActiveExact('/admin')}>Dashboard</NavLink>
+                <NavLink to="/admin/users" active={adminTabActive('users')}>Users</NavLink>
+                <NavLink to="/admin/trucks" active={adminTabActive('trucks')}>Trucks</NavLink>
+                <NavLink to="/admin/orders" active={adminTabActive('orders')}>Orders</NavLink>
+                <NavLink to="/admin/analytics" active={adminTabActive('analytics')}>Analytics</NavLink>
+                <NavLink to="/admin/audit" active={adminTabActive('audit')}>Audit</NavLink>
+              </>
+            )}
           </div>
 
           {/* Actions */}
@@ -139,19 +182,21 @@ export default function Navbar() {
                 >
                   {theme === 'dark' ? <Sun className="h-5 w-5" strokeWidth={1.8} /> : <Moon className="h-5 w-5" strokeWidth={1.8} />}
                 </button>
-                <BellButton onClick={handleBell} />
-                <Link
-                  to="/cart"
-                  className="relative inline-flex items-center justify-center h-11 w-11 rounded-full border border-line bg-surface text-body hover:text-primary hover:border-primary/40 transition-all duration-200"
-                  aria-label={`Cart, ${itemCount} items`}
-                >
-                  <ShoppingCart className="h-5 w-5" strokeWidth={1.8} />
-                  {itemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-accent text-ink text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 shadow-sm">
-                      {itemCount > 99 ? '99+' : itemCount}
-                    </span>
-                  )}
-                </Link>
+                {role !== 'ADMIN' && <BellButton onClick={handleBell} />}
+                {role === 'CUSTOMER' && (
+                  <Link
+                    to="/cart"
+                    className="relative inline-flex items-center justify-center h-11 w-11 rounded-full border border-line bg-surface text-body hover:text-primary hover:border-primary/40 transition-all duration-200"
+                    aria-label={`Cart, ${itemCount} items`}
+                  >
+                    <ShoppingCart className="h-5 w-5" strokeWidth={1.8} />
+                    {itemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-accent text-ink text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 shadow-sm">
+                        {itemCount > 99 ? '99+' : itemCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
                 <Link
                   to="/profile"
                   className="hidden sm:inline-flex items-center justify-center h-11 w-11 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white font-heading font-bold text-sm shadow-soft ring-2 ring-white hover:shadow-glow-brand transition-shadow"
@@ -162,27 +207,12 @@ export default function Navbar() {
               </>
             )}
 
-            {/* Role-specific links (desktop) */}
+            {/* Logout (desktop) */}
             {token && (
-              <div className="hidden xl:flex items-center gap-3">
-                {role === 'CUSTOMER' && (
-                  <>
-                    <NavLink to="/favorites" active={isActive('/favorites')}>Favorites</NavLink>
-                    <NavLink to="/order-history" active={isActive('/order-history')}>History</NavLink>
-                  </>
-                )}
-                {role === 'VENDOR' && (
-                  <>
-                    <NavLink to="/vendor" active={isActive('/vendor')}>My Truck</NavLink>
-                    <NavLink to="/vendor/analytics" active={isActive('/vendor/analytics')}>Analytics</NavLink>
-                  </>
-                )}
-                {role === 'ADMIN' && (
-                  <NavLink to="/admin" active={isActive('/admin')}>Admin Panel</NavLink>
-                )}
+              <div className="hidden lg:flex items-center">
                 <button
                   onClick={handleLogout}
-                  className="text-sm font-medium text-error hover:text-error/80 transition-colors"
+                  className="text-sm font-medium text-error hover:text-error/80 transition-colors whitespace-nowrap"
                 >
                   Logout
                 </button>
@@ -209,11 +239,15 @@ export default function Navbar() {
       {menuOpen && (
         <div className="lg:hidden glass-strong border-t border-line shadow-glass">
           <div className="container-app py-4 flex flex-col gap-1">
-            <NavLink to="/" active={isActive('/')}>Home</NavLink>
-            <NavLink to="/discover" active={isActive('/discover')}>Discover</NavLink>
-            <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
-            <button onClick={() => goToSection('categories')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors py-2">Categories</button>
-            <button onClick={() => goToSection('map')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors py-2">Map</button>
+            {!(token && role !== 'CUSTOMER') && (
+              <>
+                <NavLink to="/" active={isActive('/')}>Home</NavLink>
+                <NavLink to="/discover" active={isActive('/discover')}>Discover</NavLink>
+                <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
+                <button onClick={() => goToSection('categories')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors py-2">Categories</button>
+                <button onClick={() => goToSection('map')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors py-2">Map</button>
+              </>
+            )}
 
             {!token && (
               <>
@@ -232,12 +266,25 @@ export default function Navbar() {
             )}
             {token && role === 'VENDOR' && (
               <>
-                <NavLink to="/vendor" active={isActive('/vendor')}>My Truck</NavLink>
-                <NavLink to="/vendor/analytics" active={isActive('/vendor/analytics')}>Analytics</NavLink>
+                <NavLink to="/vendor" active={isActiveExact('/vendor')}>Dashboard</NavLink>
+                <NavLink to="/vendor/truck" active={vendorTabActive('truck')}>My Truck</NavLink>
+                <NavLink to="/vendor/menu" active={vendorTabActive('menu')}>Menu</NavLink>
+                <NavLink to="/vendor/orders" active={vendorTabActive('orders')}>Orders</NavLink>
+                <NavLink to="/vendor/reviews" active={vendorTabActive('reviews')}>Reviews</NavLink>
+                <NavLink to="/vendor/hours" active={vendorTabActive('hours')}>Hours</NavLink>
+                <NavLink to="/vendor/analytics" active={isActiveExact('/vendor/analytics')}>Analytics</NavLink>
+                <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
               </>
             )}
             {token && role === 'ADMIN' && (
-              <NavLink to="/admin" active={isActive('/admin')}>Admin Panel</NavLink>
+              <>
+                <NavLink to="/admin" active={isActiveExact('/admin')}>Dashboard</NavLink>
+                <NavLink to="/admin/users" active={adminTabActive('users')}>Users</NavLink>
+                <NavLink to="/admin/trucks" active={adminTabActive('trucks')}>Trucks</NavLink>
+                <NavLink to="/admin/orders" active={adminTabActive('orders')}>Orders</NavLink>
+                <NavLink to="/admin/analytics" active={adminTabActive('analytics')}>Analytics</NavLink>
+                <NavLink to="/admin/audit" active={adminTabActive('audit')}>Audit</NavLink>
+              </>
             )}
 
             {token && (

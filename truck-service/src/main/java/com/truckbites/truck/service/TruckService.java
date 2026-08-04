@@ -1,6 +1,8 @@
 package com.truckbites.truck.service;
 
+import com.truckbites.common.exception.BadRequestException;
 import com.truckbites.common.exception.ResourceNotFoundException;
+import com.truckbites.common.payment.PaymentVerification;
 import com.truckbites.truck.dto.CreateTruckRequest;
 import com.truckbites.truck.dto.UpdateLocationRequest;
 import com.truckbites.truck.model.Truck;
@@ -120,12 +122,15 @@ public class TruckService {
      * Promotes a truck as featured for the given number of days.
      * Supported durations: 7, 15 or 30 days. Re-promoting an active promotion
      * extends it from the current expiry date.
+     * The promotion only activates once the vendor's UPI payment is verified
+     * via the supplied transaction reference (UTR).
      */
     @Transactional
-    public Truck featureTruck(Long id, Long ownerId, Integer days) {
+    public Truck featureTruck(Long id, Long ownerId, Integer days, String transactionRef) {
+        PaymentVerification.requireValidUtr(transactionRef);
         if (days == null || (days != 7 && days != 15 && days != 30)) {
             log.warn("Invalid promotion duration: {}", days);
-            throw new IllegalArgumentException("Promotion duration must be 7, 15 or 30 days");
+            throw new BadRequestException("Promotion duration must be 7, 15 or 30 days");
         }
         log.debug("Promoting truck id: {} for {} days by ownerId: {}", id, days, ownerId);
         Truck truck = truckRepository.findByIdAndOwnerId(id, ownerId)

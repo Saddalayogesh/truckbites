@@ -122,6 +122,11 @@
     @apply btn bg-transparent text-primary px-6 hover:bg-primary/10;
   }
 
+  /* Destructive outline — used for cancel-plan / irreversible actions */
+  .btn-danger {
+    @apply btn bg-transparent text-error border-2 border-error/40 hover:bg-error/10 hover:border-error;
+  }
+
   /* Champagne bronze CTA — used sparingly for premium moments */
   .btn-gold {
     @apply btn bg-accent text-ink hover:bg-accent/90 shadow-glow;

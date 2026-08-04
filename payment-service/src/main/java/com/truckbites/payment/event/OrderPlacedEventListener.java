@@ -17,6 +17,9 @@ public class OrderPlacedEventListener {
 
     /**
      * Handles order.placed events and triggers mock payment processing.
+     * Note: auto-triggered payments carry no customer UTR, so the mock gateway
+     * marks them FAILED (unverified) — the real UPI payment is verified via the
+     * explicit checkout call which includes the customer's transaction reference.
      */
     @Transactional
     @RabbitListener(queues = "${app.rabbitmq.queue.order-placed:order.placed.queue}")

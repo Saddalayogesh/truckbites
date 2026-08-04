@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Pencil } from 'lucide-react';
+import { MapPin, Pencil, BadgeCheck } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { createOrder } from '../api/orderApi';
 import { processPayment } from '../api/paymentApi';
 import { getMembership } from '../api/userApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
+import UpiPayment from '../components/UpiPayment';
 import logger from '../utils/logger';
+import { isValidUtr } from '../utils/upi';
 import { NON_MEMBER, formatINR, estimateCartPricing } from '../utils/pricing';
 
 const COMPONENT = 'Checkout';
@@ -19,23 +21,18 @@ const formatPrice = (price) => {
   }).format(price);
 };
 
-const PAYMENT_METHODS = [
-  { value: 'CARD', label: 'Credit / Debit Card', description: 'Pay securely with your card' },
-  { value: 'UPI', label: 'UPI', description: 'Google Pay, PhonePe, Paytm' },
-  { value: 'CASH', label: 'Cash', description: 'Pay when you pick up' },
-];
-
 export default function Checkout() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const { user } = useAuth();
   const { items, itemsByTruck, itemCount, truckIds, clearCart } = useCart();
 
-  const [paymentMethod, setPaymentMethod] = useState('CARD');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [membership, setMembership] = useState(NON_MEMBER);
+  const [upiRef, setUpiRef] = useState('');
+  const [upiRefError, setUpiRefError] = useState('');
 
   // Load the customer's membership tier for the price breakdown
   useEffect(() => {
@@ -61,9 +58,32 @@ export default function Checkout() {
     }
   }, [items, navigate]);
 
+  // Dummy label for the QR — the food truck name(s) in the cart, never the real UPI ID
+  const paymentLabel = useMemo(() => {
+    const truckNames = [...new Set(items.map((i) => i.truckName).filter(Boolean))];
+    if (truckNames.length === 1) return truckNames[0];
+    if (truckNames.length > 1) return truckNames.join(' + ');
+    return 'TruckBites';
+  }, [items]);
+
   const handlePlaceOrder = async () => {
+    // UPI payment verification: the customer must provide the transaction
+    // reference (UTR) from their UPI app — the gateway only succeeds with it.
+    const trimmedRef = upiRef.trim();
+    if (!trimmedRef) {
+      setUpiRefError('Enter the UPI transaction ID from your payment app to verify the payment.');
+      addToast('Enter your UPI transaction ID', 'warning');
+      return;
+    }
+    if (!isValidUtr(trimmedRef)) {
+      setUpiRefError('That does not look like a valid UPI transaction ID (6+ letters/numbers).');
+      addToast('Invalid UPI transaction ID', 'warning');
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
+    setUpiRefError('');
 
     try {
       // Since backend only supports single truck per order
@@ -88,10 +108,20 @@ export default function Checkout() {
         const paymentRes = await processPayment({
           orderId: order.id,
           amount: order.totalAmount,
-          method: paymentMethod,
+          method: 'UPI',
+          transactionRef: trimmedRef,
         });
 
-        logger.info(COMPONENT, 'Payment successful', {
+        // The gateway verifies the UTR — if payment was not verified, treat the
+        // order as unpaid: surface the failure instead of a success toast.
+        if (paymentRes.data?.status !== 'SUCCESS') {
+          throw new Error(
+            'Payment could not be verified. Check your UPI transaction ID and try again. ' +
+            'Any unpaid orders created just now can be cancelled from My Orders within 60 seconds.'
+          );
+        }
+
+        logger.info(COMPONENT, 'Payment verified', {
           orderId: order.id,
           paymentId: paymentRes.data?.id,
           transactionRef: paymentRes.data?.transactionRef,
@@ -181,35 +211,47 @@ export default function Checkout() {
             <p className="text-xs text-body/60 mt-2">Share any dietary preferences or special instructions with the vendor.</p>
           </div>
 
-          {/* Payment method */}
+          {/* UPI payment — QR only */}
           <div className="card p-6">
-            <h2 className="text-lg font-heading font-semibold text-ink mb-4">Payment Method</h2>
-            <div className="space-y-3">
-              {PAYMENT_METHODS.map((method) => (
-                <label
-                  key={method.value}
-                  className={'flex items-center gap-4 p-4 rounded-input border-2 cursor-pointer transition-all duration-200 ' +
-                    (paymentMethod === method.value
-                      ? 'border-primary bg-primary/5 shadow-soft'
-                      : 'border-line hover:border-primary/40')
-                  }
-                >
-                  <input
-                    type="radio"
-                    id={`payment-${method.value}`}
-                    name="paymentMethod"
-                    value={method.value}
-                    checked={paymentMethod === method.value}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="accent-primary w-5 h-5"
-                  />
-                  <div>
-                    <p className="font-medium text-ink">{method.label}</p>
-                    <p className="text-sm text-body">{method.description}</p>
-                  </div>
-                </label>
-              ))}
+            <h2 className="text-lg font-heading font-semibold text-ink mb-4">Pay via UPI</h2>
+            <UpiPayment
+              label={paymentLabel}
+              amount={pricing.total}
+              note={truckIds.length === 1 ? 'TruckBites order' : 'TruckBites cart order'}
+            />
+
+            {/* UPI verification */}
+            <div className="mt-5 pt-5 border-t border-line">
+              <label
+                htmlFor="upi-ref"
+                className="flex items-center gap-1.5 text-sm font-heading font-semibold text-ink mb-1.5"
+              >
+                <BadgeCheck className="w-4 h-4 text-primary" strokeWidth={2} />
+                UPI Transaction ID
+              </label>
+              <input
+                id="upi-ref"
+                type="text"
+                inputMode="text"
+                value={upiRef}
+                onChange={(e) => { setUpiRef(e.target.value); if (upiRefError) setUpiRefError(''); }}
+                placeholder="e.g. 123456789012"
+                className="input-field text-center font-mono tracking-widest"
+                aria-invalid={!!upiRefError}
+                autoComplete="off"
+              />
+              <p className="text-xs text-body/60 mt-2">
+                After paying in your UPI app, copy the transaction ID / UTR shown in the payment
+                confirmation and enter it above. Your order is only confirmed once the payment is verified.
+              </p>
+              {upiRefError && (
+                <p className="text-xs text-error mt-1.5">{upiRefError}</p>
+              )}
             </div>
+
+            <p className="text-xs text-body/60 mt-4 text-center">
+              Scan the QR with any UPI app, complete the payment, then confirm your order below.
+            </p>
           </div>
 
           {/* Order items */}
@@ -293,7 +335,7 @@ export default function Checkout() {
                   Processing...
                 </>
               ) : (
-                'Place Order - ' + formatPrice(total)
+                'Place Order - ' + formatPrice(pricing.total)
               )}
             </button>
 

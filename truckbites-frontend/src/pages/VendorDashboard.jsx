@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { getMyTrucks, updateTruckLocation, toggleTruckStatus, createTruck, updateTruck, deleteTruck, getTruckReviews, replyToReview, getOperatingHours, setOperatingHours, featureTruck } from '../api/truckApi';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { getMyTrucks, updateTruckLocation, toggleTruckStatus, createTruck, updateTruck, deleteTruck, getTruckReviews, replyToReview, getOperatingHours, setOperatingHours as saveOperatingHours, featureTruck } from '../api/truckApi';
 import { getMenuByTruck, addMenuItem, updateMenuItem, updateInventory, deleteMenuItem } from '../api/menuApi';
 import { getOrdersByTruck, updateOrderStatus, bulkUpdateOrderStatus } from '../api/orderApi';
 import { getVendorPlan } from '../api/userApi';
 import MapPicker from '../components/MapPicker';
-import { Truck, UtensilsCrossed, Star, AlarmClock, ClipboardList, Pencil, TriangleAlert } from 'lucide-react';
+import { Truck, UtensilsCrossed, Star, AlarmClock, ClipboardList, Pencil, TriangleAlert, BadgeCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { showConfirm } from '../utils/confirm';
 import logger from '../utils/logger';
+import { isValidUtr } from '../utils/upi';
 import { FEATURED_PROMOTIONS, formatINR, vendorPlanByPlan } from '../utils/pricing';
 
 const COMPONENT = 'VendorDashboard';
@@ -53,6 +54,8 @@ function playNotificationSound() {
 export default function VendorDashboard() {
   const { user } = useAuth();
   const { addToast } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('truck');
   const [trucks, setTrucks] = useState([]);
   const [selectedTruckId, setSelectedTruckId] = useState(null);
@@ -61,6 +64,8 @@ export default function VendorDashboard() {
   const [promoteTruck, setPromoteTruck] = useState(null);
   const [promotingDays, setPromotingDays] = useState(7);
   const [promoting, setPromoting] = useState(false);
+  const [promoteUpiRef, setPromoteUpiRef] = useState('');
+  const [promoteUpiError, setPromoteUpiError] = useState('');
 
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
@@ -109,6 +114,15 @@ export default function VendorDashboard() {
   // Order notification state
   const [newOrderAlert, setNewOrderAlert] = useState(0);
   const prevOrdersLengthRef = useRef(0);
+
+  // Deep-link tabs via URL: /vendor/truck | /vendor/menu | /vendor/orders | /vendor/reviews | /vendor/hours
+  useEffect(() => {
+    const seg = location.pathname.split('/')[2];
+    if (seg && ['truck', 'menu', 'orders', 'reviews', 'hours'].includes(seg)) {
+      setActiveTab(seg);
+      if (seg === 'orders') setNewOrderAlert(0);
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -238,7 +252,7 @@ export default function VendorDashboard() {
     setHoursSaving(true);
     setHoursMsg('');
     try {
-      await setOperatingHours(selectedTruckId, operatingHours);
+      await saveOperatingHours(selectedTruckId, operatingHours);
       setHoursMsg('Hours saved successfully!');
       addToast('Operating hours saved successfully', 'success');
       logger.info(COMPONENT, 'Operating hours saved', { truckId: selectedTruckId });
@@ -323,14 +337,31 @@ export default function VendorDashboard() {
 
   const handlePromote = async () => {
     if (!promoteTruck) return;
+    // UPI payment verification: the vendor must provide the transaction
+    // reference (UTR) from their UPI app — the backend only features the truck
+    // once the payment is verified.
+    const trimmedRef = promoteUpiRef.trim();
+    if (!trimmedRef) {
+      setPromoteUpiError('Enter the UPI transaction ID from your payment app to verify the payment.');
+      addToast('Enter your UPI transaction ID', 'warning');
+      return;
+    }
+    if (!isValidUtr(trimmedRef)) {
+      setPromoteUpiError('That does not look like a valid UPI transaction ID (6+ letters/numbers).');
+      addToast('Invalid UPI transaction ID', 'warning');
+      return;
+    }
     setPromoting(true);
+    setPromoteUpiError('');
     try {
-      const res = await featureTruck(promoteTruck.id, promotingDays);
+      const res = await featureTruck(promoteTruck.id, promotingDays, trimmedRef);
       setTrucks((prev) => prev.map((t) => t.id === promoteTruck.id ? { ...t, featuredUntil: res.data.featuredUntil } : t));
       addToast(`"${promoteTruck.name}" is now featured for ${promotingDays} days!`, 'success');
       setPromoteTruck(null);
     } catch (err) {
-      addToast('Failed to feature truck', 'error');
+      const message = err.response?.data?.message || err.response?.data?.error || 'Failed to feature truck';
+      setPromoteUpiError(message);
+      addToast(message, 'error');
     } finally {
       setPromoting(false);
     }
@@ -638,6 +669,7 @@ export default function VendorDashboard() {
               onClick={() => {
                 setActiveTab(tab.id);
                 if (tab.id === 'orders') setNewOrderAlert(0);
+                navigate('/vendor/' + tab.id);
               }}
               className={`relative px-5 py-2 rounded-full text-sm font-heading font-medium transition-all ${
                 activeTab === tab.id
@@ -717,7 +749,7 @@ export default function VendorDashboard() {
                 </h2>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => { setPromotingDays(7); setPromoteTruck(selectedTruck); }}
+                    onClick={() => { setPromotingDays(7); setPromoteTruck(selectedTruck); setPromoteUpiRef(''); setPromoteUpiError(''); }}
                     className="btn btn-primary btn-sm"
                   >
                     <Star className="w-4 h-4 fill-current" strokeWidth={0} />
@@ -1464,6 +1496,35 @@ export default function VendorDashboard() {
                     <span className="font-heading font-bold text-primary">{formatINR(promo.price)}</span>
                   </label>
                 ))}
+              </div>
+
+              {/* UPI verification */}
+              <div className="mt-5 pt-5 border-t border-line">
+                <label
+                  htmlFor="promote-upi-ref"
+                  className="flex items-center gap-1.5 text-sm font-heading font-semibold text-ink mb-1.5"
+                >
+                  <BadgeCheck className="w-4 h-4 text-primary" strokeWidth={2} />
+                  UPI Transaction ID
+                </label>
+                <input
+                  id="promote-upi-ref"
+                  type="text"
+                  inputMode="text"
+                  value={promoteUpiRef}
+                  onChange={(e) => { setPromoteUpiRef(e.target.value); if (promoteUpiError) setPromoteUpiError(''); }}
+                  placeholder="e.g. 123456789012"
+                  className="input-field text-center font-mono tracking-widest"
+                  aria-invalid={!!promoteUpiError}
+                  autoComplete="off"
+                />
+                <p className="text-xs text-body/60 mt-2">
+                  After paying in your UPI app, copy the transaction ID / UTR shown in the payment
+                  confirmation and enter it above. The promotion is only activated once the payment is verified.
+                </p>
+                {promoteUpiError && (
+                  <p className="text-xs text-error mt-1.5">{promoteUpiError}</p>
+                )}
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-line bg-cream rounded-b-card">

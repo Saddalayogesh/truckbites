@@ -29,7 +29,6 @@ export const MEMBERSHIP_TIERS = [
     emoji: '🥈',
     color: 'bg-slate-200 text-slate-700',
     features: [
-      'Platform Fee: ₹5/order',
       '3% Member Discount',
       '1 Free Drink/Dessert Coupon / month',
       'Silver Membership Badge',
@@ -46,7 +45,6 @@ export const MEMBERSHIP_TIERS = [
     emoji: '🥇',
     color: 'bg-amber-300 text-amber-900',
     features: [
-      'Platform Fee: Free',
       '5% Member Discount',
       '2 Free Drink/Dessert Coupons / month',
       'Priority Order Processing',
@@ -64,7 +62,6 @@ export const MEMBERSHIP_TIERS = [
     emoji: '💎',
     color: 'bg-slate-400 text-white',
     features: [
-      'Platform Fee: Free',
       '8% Member Discount',
       '4 Free Drink/Dessert Coupons / month',
       'Priority Order Processing',

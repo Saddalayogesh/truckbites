@@ -1,5 +1,6 @@
 package com.truckbites.truck.service;
 
+import com.truckbites.common.exception.BadRequestException;
 import com.truckbites.common.exception.ResourceNotFoundException;
 import com.truckbites.truck.dto.CreateTruckRequest;
 import com.truckbites.truck.dto.UpdateLocationRequest;
@@ -15,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -393,5 +395,58 @@ class TruckServiceTest {
 
         verify(truckRepository).findByIdAndOwnerId(1L, 99L);
         verify(truckRepository, never()).delete(any());
+    }
+
+    // ──────────── featureTruck ────────────
+
+    @Test
+    @DisplayName("Should feature truck when a valid UTR is provided")
+    void featureTruck_shouldFeature_whenValidUtr() {
+        // Arrange
+        Truck existingTruck = createDefaultTruck(1L, 42L);
+        when(truckRepository.findByIdAndOwnerId(1L, 42L)).thenReturn(Optional.of(existingTruck));
+        when(truckRepository.save(any(Truck.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        Truck result = truckService.featureTruck(1L, 42L, 7, "TXN-PROMO123");
+
+        // Assert
+        assertThat(result.getFeaturedUntil()).isNotNull();
+        assertThat(result.getFeaturedUntil()).isAfter(LocalDateTime.now());
+        verify(truckRepository).findByIdAndOwnerId(1L, 42L);
+        verify(truckRepository).save(any(Truck.class));
+    }
+
+    @Test
+    @DisplayName("Should reject featuring when UTR is missing or invalid")
+    void featureTruck_shouldReject_whenUtrInvalid() {
+        // Arrange
+        Long truckId = 1L;
+
+        // Act & Assert
+        assertThatThrownBy(() -> truckService.featureTruck(truckId, 42L, 7, null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Payment could not be verified");
+        assertThatThrownBy(() -> truckService.featureTruck(truckId, 42L, 7, "abc"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Payment could not be verified");
+
+        verify(truckRepository, never()).findByIdAndOwnerId(any(), any());
+        verify(truckRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should reject featuring when duration is invalid even with a valid UTR")
+    void featureTruck_shouldReject_whenDurationInvalid() {
+        // Arrange
+        Long truckId = 1L;
+
+        // Act & Assert
+        assertThatThrownBy(() -> truckService.featureTruck(truckId, 42L, 10, "TXN-PROMO123"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Promotion duration must be 7, 15 or 30 days");
+
+        verify(truckRepository, never()).findByIdAndOwnerId(any(), any());
+        verify(truckRepository, never()).save(any());
     }
 }

@@ -249,13 +249,15 @@ public class TruckController {
             description = "Promotes the truck as featured for 7, 15 or 30 days so it appears " +
                     "at the top of search results and trending lists. " +
                     "The authenticated vendor must own the truck. " +
-                    "Pricing: 7 days - 299, 15 days - 499, 30 days - 799.",
+                    "Pricing: 7 days - 299, 15 days - 499, 30 days - 799. " +
+                    "The promotion only activates once the vendor's UPI payment is verified " +
+                    "via the supplied transaction reference (UTR).",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Truck featured successfully",
                     content = @Content(schema = @Schema(implementation = Truck.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid promotion duration"),
+            @ApiResponse(responseCode = "400", description = "Invalid promotion duration or payment could not be verified"),
             @ApiResponse(responseCode = "401", description = "Authentication required"),
             @ApiResponse(responseCode = "403", description = "Access denied - not your truck"),
             @ApiResponse(responseCode = "404", description = "Truck not found")
@@ -263,10 +265,14 @@ public class TruckController {
     public ResponseEntity<Truck> featureTruck(
             @Parameter(description = "Truck ID", example = "1") @PathVariable Long id,
             @Parameter(description = "Promotion duration in days", example = "7") @RequestParam Integer days,
+            @Parameter(description = "UPI transaction reference (UTR) from the vendor's UPI app. " +
+                    "Required — the promotion only activates once the payment is verified.",
+                    example = "123456789012")
+            @RequestParam(required = false) String transactionRef,
             Authentication authentication) {
         Long ownerId = extractUserId(authentication);
         log.info("Feature truck: id={}, days={}, ownerId={}", id, days, ownerId);
-        return ResponseEntity.ok(truckService.featureTruck(id, ownerId, days));
+        return ResponseEntity.ok(truckService.featureTruck(id, ownerId, days, transactionRef));
     }
 
     @DeleteMapping("/{id}")
