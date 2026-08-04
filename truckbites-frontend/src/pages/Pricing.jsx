@@ -1,23 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Check, Crown, Zap, Sparkles, BadgeCheck } from 'lucide-react';
+import { Check, Crown, Zap, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getMembership, getVendorPlan } from '../api/userApi';
 import { useToast } from '../components/Toast';
-import { subscribeMembership, subscribeVendorPlan } from '../api/userApi';
-import {
-  MEMBERSHIP_TIERS,
-  VENDOR_PLANS,
-  FEATURED_PROMOTIONS,
-  NON_MEMBER,
-  formatINR,
-  estimatePricing,
-} from '../utils/pricing';
+import { MEMBERSHIP_TIERS, VENDOR_PLANS, FEATURED_PROMOTIONS, formatINR } from '../utils/pricing';
 
 function FeatureList({ features }) {
   if (!features || features.length === 0) {
     return (
       <p className="text-sm text-body/70">
-        Standard platform fees and no member discounts apply.
+        No member discounts apply.
       </p>
     );
   }
@@ -36,11 +29,31 @@ function FeatureList({ features }) {
 }
 
 export default function Pricing() {
-  const { token, user, role } = useAuth();
+  const { token, role, user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
-  const [subscribing, setSubscribing] = useState(null);
+  const [currentPlan, setCurrentPlan] = useState(null);
 
+  // Reflect the logged-in user's active plan on the pricing cards.
+  useEffect(() => {
+    if (!token || !user?.id) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        if (role === 'CUSTOMER') {
+          const res = await getMembership(user.id);
+          if (!cancelled) setCurrentPlan(res.data);
+        } else if (role === 'VENDOR') {
+          const res = await getVendorPlan(user.id);
+          if (!cancelled) setCurrentPlan(res.data);
+        }
+      } catch {
+        // Plan lookup is best-effort; cards just render without a badge.
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [token, role, user]);
   const requireAuth = () => {
     if (!token) {
       addToast('Sign in to subscribe', 'warning');
@@ -50,33 +63,16 @@ export default function Pricing() {
     return true;
   };
 
-  const handleSubscribeMembership = async (tier) => {
+  // Open the plan's payment page
+  const choosePlan = (kind, planKey) => {
     if (!requireAuth()) return;
-    setSubscribing('member-' + tier);
-    try {
-      await subscribeMembership(user.id, tier);
-      addToast('Membership ' + tier + ' activated!', 'success');
-    } catch (err) {
-      addToast(err.response?.data?.message || 'Failed to activate membership', 'error');
-    } finally {
-      setSubscribing(null);
-    }
+    navigate(kind === 'membership' ? `/pay/membership/${planKey}` : `/pay/vendor/${planKey}`);
   };
 
-  const handleSubscribeVendorPlan = async (plan) => {
-    if (!requireAuth()) return;
-    setSubscribing('vendor-' + plan);
-    try {
-      await subscribeVendorPlan(user.id, plan);
-      addToast('Vendor plan ' + plan + ' activated!', 'success');
-    } catch (err) {
-      addToast(err.response?.data?.message || 'Failed to activate vendor plan', 'error');
-    } finally {
-      setSubscribing(null);
-    }
-  };
-
-  const example = estimatePricing(500, NON_MEMBER);
+  // Role-based visibility: customers see customer pricing, vendors see vendor pricing.
+  const isVendorView = role === 'VENDOR';
+  const showCustomerPricing = !token || role === 'CUSTOMER' || role === 'ADMIN';
+  const showVendorPricing = isVendorView || role === 'ADMIN';
 
   return (
     <div className="min-h-[80vh]">
@@ -86,12 +82,14 @@ export default function Pricing() {
           Simple, transparent <span className="text-primary">pricing</span>
         </h1>
         <p className="text-body mt-3 max-w-2xl mx-auto">
-          Save on every order with a membership, or grow your business with a
-          vendor plan. No hidden charges — GST is calculated separately at checkout.
+          {isVendorView
+            ? 'Pay less commission and unlock growth tools as you scale. No hidden charges — pick the plan that fits your truck.'
+            : 'Save on every order with a membership — discounts, free coupons & more.'}
         </p>
       </div>
 
       {/* Customer membership */}
+      {showCustomerPricing && (
       <section id="customer-plans" className="mb-16">
         <div className="flex items-center gap-3 mb-8">
           <span className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
@@ -99,12 +97,14 @@ export default function Pricing() {
           </span>
           <div>
             <h2 className="text-2xl font-heading font-bold text-ink">Customer Membership</h2>
-            <p className="text-sm text-body">Save on every order — pay less in platform fees, earn discounts &amp; coupons.</p>
+            <p className="text-sm text-body">Save on every order — earn discounts, free coupons &amp; more.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {MEMBERSHIP_TIERS.map((tier) => (
+          {MEMBERSHIP_TIERS.map((tier) => {
+            const isCurrent = currentPlan?.active && currentPlan.tier === tier.tier;
+            return (
             <div
               key={tier.tier}
               className={`card p-7 flex flex-col card-hover ${tier.tier === 'GOLD' ? 'border-2 border-accent shadow-glow-brand relative' : ''}`}
@@ -112,6 +112,11 @@ export default function Pricing() {
               {tier.tier === 'GOLD' && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-ink text-[11px] font-heading font-bold uppercase tracking-wide px-3 py-1 rounded-full shadow-sm">
                   Most Popular
+                </span>
+              )}
+              {isCurrent && (
+                <span className="absolute -top-3 right-4 bg-success text-white text-[11px] font-heading font-bold uppercase tracking-wide px-3 py-1 rounded-full shadow-sm">
+                  ✓ Current Plan
                 </span>
               )}
               <div className="flex items-center justify-between mb-4">
@@ -128,79 +133,35 @@ export default function Pricing() {
               <div className="flex-1">
                 <FeatureList features={tier.features} />
               </div>
-              <button
-                onClick={() => handleSubscribeMembership(tier.tier)}
-                disabled={subscribing === 'member-' + tier.tier}
-                className={`btn mt-6 btn-block ${tier.tier === 'GOLD' ? 'btn-primary' : 'btn-secondary'}`}
-              >
-                {subscribing === 'member-' + tier.tier ? 'Activating...' : 'Subscribe'}
-              </button>
+              {isCurrent ? (
+                <button disabled className="btn mt-6 btn-block bg-success/15 text-success border-2 border-success/30 cursor-default">
+                  ✓ You're subscribed
+                </button>
+              ) : (
+                <button
+                  onClick={() => choosePlan('membership', tier.tier)}
+                  className={`btn mt-6 btn-block ${tier.tier === 'GOLD' ? 'btn-primary' : 'btn-secondary'}`}
+                >
+                  Subscribe
+                </button>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <p className="text-sm text-body/80 mt-6 max-w-3xl mx-auto text-center bg-cream border border-line rounded-card px-5 py-4">
           <Sparkles className="h-4 w-4 inline text-primary mr-1" strokeWidth={2} />
-          <strong className="text-ink">Why subscribe?</strong> The Silver plan pays for itself
-          in just a few orders by cutting your platform fee from ₹15 to ₹5 and adding a 3% discount.
-          Gold &amp; Platinum members pay <strong className="text-ink">zero platform fees</strong>,
-          get bigger discounts and priority order processing.
+          <strong className="text-ink">Why subscribe?</strong> Every membership tier gives you a
+          discount on every order — 3% on Silver, 5% on Gold and 8% on Platinum — plus free
+          drink &amp; dessert coupons each month. Gold &amp; Platinum members also get
+          <strong className="text-ink"> priority order processing</strong>.
         </p>
       </section>
-
-      {/* Platform fee + GST */}
-      <section className="mb-16">
-        <div className="flex items-center gap-3 mb-8">
-          <span className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-            <BadgeCheck className="h-5 w-5" strokeWidth={1.8} />
-          </span>
-          <div>
-            <h2 className="text-2xl font-heading font-bold text-ink">Platform Fee &amp; GST</h2>
-            <p className="text-sm text-body">A small platform fee per order — waived for members. GST per Indian tax regulations.</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="card p-0 overflow-hidden">
-            <div className="px-6 py-4 bg-primary text-white font-heading font-semibold">Platform Fee per Order</div>
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-line">
-                {[
-                  { tier: 'Non-Member', fee: '₹15/order', badge: 'bg-line/60 text-body' },
-                  { tier: 'Silver', fee: '₹5/order', badge: 'bg-slate-200 text-slate-700' },
-                  { tier: 'Gold', fee: 'Free', badge: 'bg-amber-300 text-amber-900' },
-                  { tier: 'Platinum', fee: 'Free', badge: 'bg-slate-400 text-white' },
-                ].map((row) => (
-                  <tr key={row.tier} className="hover:bg-cream transition-colors">
-                    <td className="px-6 py-3.5">
-                      <span className={`badge ${row.badge}`}>{row.tier}</span>
-                    </td>
-                    <td className="px-6 py-3.5 text-right font-heading font-semibold text-ink">{row.fee}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="card p-6">
-            <h3 className="font-heading font-semibold text-ink mb-1">GST Billing Example</h3>
-            <p className="text-sm text-body mb-5">
-              Non-member ordering food worth {formatINR(500)} — GST 5% on food + 18% on platform fee.
-            </p>
-            <div className="space-y-2.5 text-sm">
-              <div className="flex justify-between"><span className="text-body">Food Total</span><span className="font-medium text-ink">{formatINR(example.subtotal)}</span></div>
-              <div className="flex justify-between"><span className="text-body">Platform Fee</span><span className="font-medium text-ink">{formatINR(example.platformFee)}</span></div>
-              <div className="flex justify-between"><span className="text-body">GST (5% + 18%)</span><span className="font-medium text-ink">{formatINR(example.gst)}</span></div>
-              <div className="border-t border-line pt-2.5 flex justify-between font-heading font-bold text-ink">
-                <span>Total</span>
-                <span className="text-primary">{formatINR(example.total)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      )}
 
       {/* Vendor plans */}
+      {showVendorPricing && (
       <section id="vendor-plans" className="mb-16">
         <div className="flex items-center gap-3 mb-8">
           <span className="h-10 w-10 rounded-xl bg-accent/15 text-accentDark flex items-center justify-center">
@@ -213,11 +174,18 @@ export default function Pricing() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {VENDOR_PLANS.map((plan) => (
+          {VENDOR_PLANS.map((plan) => {
+            const isCurrent = currentPlan?.active && currentPlan.plan === plan.plan;
+            return (
             <div
               key={plan.plan}
-              className={`card p-6 flex flex-col card-hover ${plan.plan === 'PRO' ? 'border-2 border-primary' : ''}`}
+              className={`card p-6 flex flex-col card-hover relative ${plan.plan === 'PRO' ? 'border-2 border-primary' : ''}`}
             >
+              {isCurrent && (
+                <span className="absolute -top-3 right-4 bg-success text-white text-[11px] font-heading font-bold uppercase tracking-wide px-3 py-1 rounded-full shadow-sm">
+                  ✓ Current Plan
+                </span>
+              )}
               <div className="text-3xl mb-3">{plan.emoji}</div>
               <h3 className="font-heading font-bold text-ink text-lg">{plan.displayName}</h3>
               <div className="flex items-end gap-1 my-2">
@@ -230,22 +198,25 @@ export default function Pricing() {
               <div className="flex-1">
                 <FeatureList features={plan.features} />
               </div>
-              {plan.plan !== 'FREE' && (
+              {isCurrent ? (
+                <button disabled className="btn mt-5 btn-block btn-sm bg-success/15 text-success border-2 border-success/30 cursor-default">
+                  ✓ You're subscribed
+                </button>
+              ) : plan.plan !== 'FREE' ? (
                 <button
-                  onClick={() => handleSubscribeVendorPlan(plan.plan)}
-                  disabled={subscribing === 'vendor-' + plan.plan}
+                  onClick={() => choosePlan('vendor', plan.plan)}
                   className={`btn mt-5 btn-block btn-sm ${plan.plan === 'PREMIUM' ? 'btn-primary' : 'btn-secondary'}`}
                 >
-                  {subscribing === 'vendor-' + plan.plan ? 'Activating...' : 'Choose ' + plan.displayName}
+                  Choose {plan.displayName}
                 </button>
-              )}
-              {plan.plan === 'FREE' && (
+              ) : (
                 <div className="mt-5 h-9 flex items-center justify-center text-xs text-body/70">
                   Included with every vendor account
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <p className="text-sm text-body/80 mt-6 max-w-3xl mx-auto text-center bg-cream border border-line rounded-card px-5 py-4">
@@ -256,8 +227,10 @@ export default function Pricing() {
           — more than covering the ₹999 plan cost.
         </p>
       </section>
+      )}
 
       {/* Featured promotion */}
+      {showVendorPricing && (
       <section className="mb-8">
         <div className="flex items-center gap-3 mb-8">
           <span className="h-10 w-10 rounded-xl bg-accent/15 text-accentDark flex items-center justify-center">
@@ -295,6 +268,7 @@ export default function Pricing() {
           )}
         </div>
       </section>
+      )}
     </div>
   );
 }

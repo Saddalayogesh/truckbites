@@ -10,10 +10,13 @@ const TruckDiscovery = lazy(() => import('../pages/TruckDiscovery'));
 const TruckMenu = lazy(() => import('../pages/TruckMenu'));
 const Cart = lazy(() => import('../pages/Cart'));
 const Checkout = lazy(() => import('../pages/Checkout'));
+const PlanPayment = lazy(() => import('../pages/PlanPayment'));
 const OrderTracking = lazy(() => import('../pages/OrderTracking'));
 const OrderHistory = lazy(() => import('../pages/OrderHistory'));
+const VendorHome = lazy(() => import('../pages/VendorHome'));
 const VendorDashboard = lazy(() => import('../pages/VendorDashboard'));
 const VendorAnalytics = lazy(() => import('../pages/VendorAnalytics'));
+const AdminHome = lazy(() => import('../pages/AdminHome'));
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
 const FavoritesPage = lazy(() => import('../pages/FavoritesPage'));
 const Profile = lazy(() => import('../pages/Profile'));
@@ -70,6 +73,22 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/pay/membership/:planKey"
+        element={
+          <ProtectedRoute allowedRoles={['CUSTOMER']}>
+            <PlanPayment kind="membership" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pay/vendor/:planKey"
+        element={
+          <ProtectedRoute allowedRoles={['VENDOR']}>
+            <PlanPayment kind="vendor" />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/orders"
         element={
           <ProtectedRoute allowedRoles={['CUSTOMER']}>
@@ -96,6 +115,14 @@ export default function AppRoutes() {
 
       {/* Vendor routes */}
       <Route
+        path="/vendor"
+        element={
+          <ProtectedRoute allowedRoles={['VENDOR']}>
+            <VendorHome />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/vendor/analytics"
         element={
           <ProtectedRoute allowedRoles={['VENDOR']}>
@@ -113,6 +140,14 @@ export default function AppRoutes() {
       />
 
       {/* Admin routes */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <AdminHome />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/admin/*"
         element={

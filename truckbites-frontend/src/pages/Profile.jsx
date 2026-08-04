@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, Heart, ShoppingCart, KeyRound, MapPin, Phone, Crown, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getProfile, updateProfile, getMembership, getVendorPlan } from '../api/userApi';
+import { getProfile, updateProfile, getMembership, getVendorPlan, cancelMembership, cancelVendorPlan } from '../api/userApi';
 import { membershipByTier, vendorPlanByPlan, formatINR } from '../utils/pricing';
+import { showConfirm } from '../utils/confirm';
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -18,6 +19,7 @@ export default function Profile() {
   const [form, setForm] = useState({ phone: '', address: '', profileImageUrl: '' });
   const [membership, setMembership] = useState(null);
   const [vendorPlan, setVendorPlan] = useState(null);
+  const [cancelling, setCancelling] = useState({ membership: false, vendorPlan: false });
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -51,6 +53,48 @@ export default function Profile() {
     }
     return () => { cancelled = true; };
   }, [user]);
+
+  const handleCancelMembership = async () => {
+    if (!membership?.active) return;
+    const ok = await showConfirm({
+      title: 'Cancel membership?',
+      text: `Your ${membership.displayName} membership will end immediately and you'll revert to Non-Member.`,
+      confirmText: 'Yes, cancel',
+      danger: true,
+    });
+    if (!ok) return;
+    setCancelling((p) => ({ ...p, membership: true }));
+    try {
+      const res = await cancelMembership();
+      setMembership(res.data);
+      addToast('Membership cancelled', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to cancel membership', 'error');
+    } finally {
+      setCancelling((p) => ({ ...p, membership: false }));
+    }
+  };
+
+  const handleCancelVendorPlan = async () => {
+    if (!vendorPlan?.active) return;
+    const ok = await showConfirm({
+      title: 'Cancel vendor plan?',
+      text: `Your ${vendorPlan.displayName} plan will end immediately and your truck reverts to the Free plan.`,
+      confirmText: 'Yes, cancel',
+      danger: true,
+    });
+    if (!ok) return;
+    setCancelling((p) => ({ ...p, vendorPlan: true }));
+    try {
+      const res = await cancelVendorPlan();
+      setVendorPlan(res.data);
+      addToast('Vendor plan cancelled', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.message || 'Failed to cancel vendor plan', 'error');
+    } finally {
+      setCancelling((p) => ({ ...p, vendorPlan: false }));
+    }
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -91,7 +135,19 @@ export default function Profile() {
           <div className="text-white">
             <h2 className="text-2xl font-heading font-bold">{user?.name || 'User'}</h2>
             <p className="text-white/80">{user?.email}</p>
-            <span className="badge bg-accent text-ink mt-1.5">{user?.role || 'CUSTOMER'}</span>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              <span className="badge bg-accent text-ink">{user?.role || 'CUSTOMER'}</span>
+              {membership?.active && membership.tier !== 'NONE' && (
+                <span className="badge bg-white/90 text-ink">
+                  {membershipByTier(membership.tier).emoji} {membership.displayName} Member
+                </span>
+              )}
+              {vendorPlan?.active && vendorPlan.plan !== 'FREE' && (
+                <span className="badge bg-white/90 text-ink">
+                  {vendorPlanByPlan(vendorPlan.plan).emoji} {vendorPlan.displayName} Plan
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="p-6 space-y-6">
@@ -146,8 +202,8 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Membership card */}
-      {membership && (
+      {/* Membership card — shown while a paid membership is active */}
+      {membership?.active && (
         <div className="card p-6 mt-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <span className="h-12 w-12 rounded-full bg-accent/15 text-accentDark flex items-center justify-center text-2xl">
@@ -172,9 +228,18 @@ export default function Profile() {
                 {membership.priorityProcessing ? ' · Priority processing' : ''}
               </p>
             </div>
-            <Link to="/pricing" className="btn btn-secondary btn-sm shrink-0">
-              {membership.active ? 'Manage / Upgrade' : 'Subscribe'}
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              <button
+                onClick={handleCancelMembership}
+                disabled={cancelling.membership}
+                className="btn btn-danger btn-sm shrink-0"
+              >
+                {cancelling.membership ? 'Cancelling…' : 'Cancel Plan'}
+              </button>
+              <Link to="/pricing" className="btn btn-secondary btn-sm shrink-0">
+                Manage / Upgrade
+              </Link>
+            </div>
           </div>
         </div>
       )}
@@ -202,9 +267,20 @@ export default function Profile() {
                 {vendorPlan.commissionPercent}% order commission · {vendorPlan.benefits}
               </p>
             </div>
-            <Link to="/pricing" className="btn btn-secondary btn-sm shrink-0">
-              {vendorPlan.active ? 'Manage Plan' : 'Upgrade Plan'}
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              {vendorPlan.active && vendorPlan.plan !== 'FREE' && (
+                <button
+                  onClick={handleCancelVendorPlan}
+                  disabled={cancelling.vendorPlan}
+                  className="btn btn-danger btn-sm shrink-0"
+                >
+                  {cancelling.vendorPlan ? 'Cancelling…' : 'Cancel Plan'}
+                </button>
+              )}
+              <Link to="/pricing" className="btn btn-secondary btn-sm shrink-0">
+                {vendorPlan.active ? 'Manage Plan' : 'Upgrade Plan'}
+              </Link>
+            </div>
           </div>
         </div>
       )}

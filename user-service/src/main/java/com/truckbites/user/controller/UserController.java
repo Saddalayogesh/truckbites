@@ -23,6 +23,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -128,13 +129,34 @@ public class UserController {
             @Parameter(description = "Membership tier to subscribe to", example = "GOLD", required = true,
                     schema = @Schema(allowableValues = {"SILVER", "GOLD", "PLATINUM"}))
             @RequestParam MembershipTier tier,
+            @Parameter(description = "UPI transaction reference (UTR) from the customer's UPI app. " +
+                    "Required — the plan only activates once the payment is verified.",
+                    example = "123456789012")
+            @RequestParam(required = false) String transactionRef,
             Authentication authentication) {
         Long userId = extractUserId(authentication);
         log.info("Subscribe membership: userId={}, tier={}", userId, tier);
         if (tier == MembershipTier.NONE) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(userService.subscribeMembership(userId, tier));
+        return ResponseEntity.ok(userService.subscribeMembership(userId, tier, transactionRef));
+    }
+
+    @DeleteMapping("/membership")
+    @Operation(
+            summary = "Cancel membership",
+            description = "Immediately cancels the authenticated customer's membership, reverting to Non-Member. " +
+                    "The userId is taken from the JWT, never from the request."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Membership cancelled",
+                    content = @Content(schema = @Schema(implementation = MembershipResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Authentication required")
+    })
+    public ResponseEntity<MembershipResponse> cancelMembership(Authentication authentication) {
+        Long userId = extractUserId(authentication);
+        log.info("Cancel membership: userId={}", userId);
+        return ResponseEntity.ok(userService.cancelMembership(userId));
     }
 
     @GetMapping("/vendor-plan")
@@ -172,6 +194,10 @@ public class UserController {
             @Parameter(description = "Vendor plan to subscribe to", example = "PRO", required = true,
                     schema = @Schema(allowableValues = {"STARTER", "PRO", "PREMIUM"}))
             @RequestParam VendorPlan plan,
+            @Parameter(description = "UPI transaction reference (UTR) from the vendor's UPI app. " +
+                    "Required — the plan only activates once the payment is verified.",
+                    example = "123456789012")
+            @RequestParam(required = false) String transactionRef,
             Authentication authentication) {
         checkVendorOrAdminRole(authentication);
         Long userId = extractUserId(authentication);
@@ -179,7 +205,26 @@ public class UserController {
         if (plan == VendorPlan.FREE) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(userService.subscribeVendorPlan(userId, plan));
+        return ResponseEntity.ok(userService.subscribeVendorPlan(userId, plan, transactionRef));
+    }
+
+    @DeleteMapping("/vendor-plan")
+    @Operation(
+            summary = "Cancel vendor plan",
+            description = "Immediately cancels the authenticated vendor's paid plan, reverting to the FREE plan. " +
+                    "Requires VENDOR or ADMIN role; the userId is taken from the JWT."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Vendor plan cancelled",
+                    content = @Content(schema = @Schema(implementation = VendorPlanResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Requires VENDOR or ADMIN role")
+    })
+    public ResponseEntity<VendorPlanResponse> cancelVendorPlan(Authentication authentication) {
+        checkVendorOrAdminRole(authentication);
+        Long userId = extractUserId(authentication);
+        log.info("Cancel vendor plan: userId={}", userId);
+        return ResponseEntity.ok(userService.cancelVendorPlan(userId));
     }
 
     /**

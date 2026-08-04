@@ -50,11 +50,15 @@ export async function getMembership(userId) {
 /**
  * Subscribe (or upgrade) the customer's membership tier.
  * @param {string} tier SILVER | GOLD | PLATINUM
+ * @param {string} [transactionRef] UPI transaction ID (UTR) from the customer's UPI app —
+ *                                 required; the plan only activates once the payment is verified.
  */
-export async function subscribeMembership(userId, tier) {
-  logger.info(COMPONENT, 'Subscribing to membership', { userId, tier });
+export async function subscribeMembership(userId, tier, transactionRef) {
+  logger.info(COMPONENT, 'Subscribing to membership', { userId, tier, transactionRef: transactionRef ? '••••' : null });
   try {
-    const response = await axiosClient.post('/users/membership', null, { params: { userId, tier } });
+    const params = { userId, tier };
+    if (transactionRef) params.transactionRef = transactionRef.trim();
+    const response = await axiosClient.post('/users/membership', null, { params });
     logger.info(COMPONENT, 'Membership activated', { userId, tier });
     return response;
   } catch (error) {
@@ -81,15 +85,51 @@ export async function getVendorPlan(userId) {
 /**
  * Subscribe (or upgrade) the vendor's plan.
  * @param {string} plan STARTER | PRO | PREMIUM
+ * @param {string} [transactionRef] UPI transaction ID (UTR) from the vendor's UPI app —
+ *                                 required; the plan only activates once the payment is verified.
  */
-export async function subscribeVendorPlan(userId, plan) {
-  logger.info(COMPONENT, 'Subscribing to vendor plan', { userId, plan });
+export async function subscribeVendorPlan(userId, plan, transactionRef) {
+  logger.info(COMPONENT, 'Subscribing to vendor plan', { userId, plan, transactionRef: transactionRef ? '••••' : null });
   try {
-    const response = await axiosClient.post('/users/vendor-plan', null, { params: { userId, plan } });
+    const params = { userId, plan };
+    if (transactionRef) params.transactionRef = transactionRef.trim();
+    const response = await axiosClient.post('/users/vendor-plan', null, { params });
     logger.info(COMPONENT, 'Vendor plan activated', { userId, plan });
     return response;
   } catch (error) {
     logger.error(COMPONENT, 'Failed to subscribe vendor plan', { userId, plan, error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Immediately cancel the customer's membership (reverts to Non-Member).
+ * The userId is derived from the JWT on the backend.
+ */
+export async function cancelMembership() {
+  logger.info(COMPONENT, 'Cancelling membership');
+  try {
+    const response = await axiosClient.delete('/users/membership');
+    logger.info(COMPONENT, 'Membership cancelled', { tier: response.data?.tier });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to cancel membership', { error: error.message });
+    throw error;
+  }
+}
+
+/**
+ * Immediately cancel the vendor's paid plan (reverts to the FREE plan).
+ * The userId is derived from the JWT on the backend.
+ */
+export async function cancelVendorPlan() {
+  logger.info(COMPONENT, 'Cancelling vendor plan');
+  try {
+    const response = await axiosClient.delete('/users/vendor-plan');
+    logger.info(COMPONENT, 'Vendor plan cancelled', { plan: response.data?.plan });
+    return response;
+  } catch (error) {
+    logger.error(COMPONENT, 'Failed to cancel vendor plan', { error: error.message });
     throw error;
   }
 }

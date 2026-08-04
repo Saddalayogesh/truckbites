@@ -51,8 +51,8 @@ public class PaymentController {
     @Operation(
             summary = "Process a payment",
             description = "Processes a payment for the given order. Delegates to a simulated payment gateway " +
-                    "(always returns SUCCESS for amounts > 0). On success, saves the payment record and " +
-                    "publishes an order.paid event to RabbitMQ.",
+                    "(returns SUCCESS only when a valid UPI transaction reference is supplied). On success, " +
+                    "saves the payment record and publishes an order.paid event to RabbitMQ.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses({

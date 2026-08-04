@@ -39,12 +39,21 @@ public class PaymentService {
         PaymentStatus gatewayStatus = simulateGatewayCall(request);
         log.info("Gateway response for orderId={}: {}", request.getOrderId(), gatewayStatus);
 
+        // Use the customer-provided UTR as the transaction reference when present.
+        // A multi-truck checkout reuses the same UTR across several orders, so the
+        // stored ref is suffixed with the orderId to satisfy the unique constraint.
+        String transactionRef = request.getTransactionRef();
+        String storedRef = null;
+        if (transactionRef != null && !transactionRef.isBlank()) {
+            storedRef = transactionRef.trim() + "-" + request.getOrderId();
+        }
         Payment payment = Payment.builder()
                 .orderId(request.getOrderId())
                 .customerEmail(request.getCustomerEmail())
                 .amount(request.getAmount())
                 .status(gatewayStatus)
                 .method(request.getMethod())
+                .transactionRef(storedRef)
                 .build();
 
         Payment saved = paymentRepository.save(payment);
@@ -61,7 +70,9 @@ public class PaymentService {
 
     /**
      * Simulates a call to an external payment gateway.
-     * Returns SUCCESS unless the amount is ≤ 0.
+     * Returns SUCCESS only when the customer provided a valid UPI transaction
+     * reference (UTR) — this verifies they actually completed the payment in
+     * their UPI app. Returns FAILED when the amount is ≤ 0 or no valid UTR is given.
      * <p>
      * This is a clearly-marked mock — replace with actual gateway integration.
      */
@@ -71,6 +82,15 @@ public class PaymentService {
 
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             log.warn("Gateway returned FAILED: amount is ≤ 0 for orderId={}", request.getOrderId());
+            return PaymentStatus.FAILED;
+        }
+
+        String transactionRef = request.getTransactionRef();
+        boolean validUtr = transactionRef != null
+                && transactionRef.trim().matches("^[A-Za-z0-9-]{6,30}$");
+        if (!validUtr) {
+            log.warn("Gateway returned FAILED: missing or invalid UPI transaction reference (UTR) for orderId={}",
+                    request.getOrderId());
             return PaymentStatus.FAILED;
         }
 

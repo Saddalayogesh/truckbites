@@ -44,7 +44,7 @@ export default function Register() {
       addToast(`Welcome to TruckBites, ${name || 'friend'}!`, 'success');
       // Redirect based on role
       if (role === 'VENDOR') {
-        navigate('/vendor-dashboard');
+        navigate('/vendor');
       } else if (role === 'ADMIN') {
         navigate('/admin');
       } else {
