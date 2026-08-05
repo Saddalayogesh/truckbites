@@ -2,13 +2,16 @@ package com.truckbites.user.service;
 
 import com.truckbites.common.exception.BadRequestException;
 import com.truckbites.common.exception.ResourceNotFoundException;
+import com.truckbites.common.payment.RazorpayPaymentVerifier;
 import com.truckbites.user.model.MembershipTier;
 import com.truckbites.user.model.UserProfile;
 import com.truckbites.user.model.VendorPlan;
+import com.truckbites.user.payment.RazorpayOrderAmountVerifier;
 import com.truckbites.user.repository.UserProfileRepository;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,11 +27,25 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
+    private static final String TEST_KEY_SECRET = "test_key_secret";
+    private static final String ORDER_ID = "order_test123";
+    private static final String PAYMENT_ID = "pay_test123";
+    private static final String VALID_SIGNATURE =
+            RazorpayPaymentVerifier.sign(TEST_KEY_SECRET, ORDER_ID, PAYMENT_ID);
+
     @Mock
     private UserProfileRepository userProfileRepository;
 
+    @Mock
+    private RazorpayOrderAmountVerifier razorpayOrderAmountVerifier;
+
     @InjectMocks
     private UserService userService;
+
+    @BeforeEach
+    void setUp() {
+        org.springframework.test.util.ReflectionTestUtils.setField(userService, "razorpayKeySecret", TEST_KEY_SECRET);
+    }
 
     @Test
     @DisplayName("Should return profile when userId exists")
@@ -221,8 +238,8 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Should activate membership when a valid UTR is provided")
-    void subscribeMembership_shouldActivate_whenValidUtr() {
+    @DisplayName("Should activate membership when a valid Razorpay signature is provided")
+    void subscribeMembership_shouldActivate_whenSignatureValid() {
         // Arrange
         Long userId = 1L;
         UserProfile profile = UserProfile.builder()
@@ -233,9 +250,10 @@ class UserServiceTest {
 
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
         when(userProfileRepository.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(razorpayOrderAmountVerifier.matches(ORDER_ID, 9900L)).thenReturn(true);
 
         // Act
-        var result = userService.subscribeMembership(userId, MembershipTier.GOLD, "TXN-PLAN123");
+        var result = userService.subscribeMembership(userId, MembershipTier.GOLD, ORDER_ID, PAYMENT_ID, VALID_SIGNATURE);
 
         // Assert
         assertThat(result.getTier()).isEqualTo("GOLD");
@@ -247,16 +265,17 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Should reject membership subscription when UTR is missing or invalid")
-    void subscribeMembership_shouldReject_whenUtrInvalid() {
+    @DisplayName("Should reject membership subscription when signature is missing or invalid")
+    void subscribeMembership_shouldReject_whenSignatureInvalid() {
         // Arrange
         Long userId = 1L;
 
         // Act & Assert
-        assertThatThrownBy(() -> userService.subscribeMembership(userId, MembershipTier.GOLD, null))
+        assertThatThrownBy(() -> userService.subscribeMembership(userId, MembershipTier.GOLD, null, null, null))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Payment could not be verified");
-        assertThatThrownBy(() -> userService.subscribeMembership(userId, MembershipTier.GOLD, "abc"))
+        assertThatThrownBy(() -> userService.subscribeMembership(
+                userId, MembershipTier.GOLD, ORDER_ID, PAYMENT_ID, "not-a-valid-signature"))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Payment could not be verified");
 
@@ -265,8 +284,8 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Should activate vendor plan when a valid UTR is provided")
-    void subscribeVendorPlan_shouldActivate_whenValidUtr() {
+    @DisplayName("Should activate vendor plan when a valid Razorpay signature is provided")
+    void subscribeVendorPlan_shouldActivate_whenSignatureValid() {
         // Arrange
         Long userId = 1L;
         UserProfile profile = UserProfile.builder()
@@ -277,9 +296,10 @@ class UserServiceTest {
 
         when(userProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
         when(userProfileRepository.save(any(UserProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(razorpayOrderAmountVerifier.matches(ORDER_ID, 99900L)).thenReturn(true);
 
         // Act
-        var result = userService.subscribeVendorPlan(userId, VendorPlan.PRO, "TXN-PLAN123");
+        var result = userService.subscribeVendorPlan(userId, VendorPlan.PRO, ORDER_ID, PAYMENT_ID, VALID_SIGNATURE);
 
         // Assert
         assertThat(result.getPlan()).isEqualTo("PRO");
@@ -291,16 +311,17 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Should reject vendor plan subscription when UTR is missing or invalid")
-    void subscribeVendorPlan_shouldReject_whenUtrInvalid() {
+    @DisplayName("Should reject vendor plan subscription when signature is missing or invalid")
+    void subscribeVendorPlan_shouldReject_whenSignatureInvalid() {
         // Arrange
         Long userId = 1L;
 
         // Act & Assert
-        assertThatThrownBy(() -> userService.subscribeVendorPlan(userId, VendorPlan.PRO, null))
+        assertThatThrownBy(() -> userService.subscribeVendorPlan(userId, VendorPlan.PRO, null, null, null))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Payment could not be verified");
-        assertThatThrownBy(() -> userService.subscribeVendorPlan(userId, VendorPlan.PRO, "123"))
+        assertThatThrownBy(() -> userService.subscribeVendorPlan(
+                userId, VendorPlan.PRO, ORDER_ID, PAYMENT_ID, "not-a-valid-signature"))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Payment could not be verified");
 

@@ -19,6 +19,10 @@ spring:
       circuitbreaker:
         enabled: true
 
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID:rzp_test_TLzX3pgsX3VSku}
+  key-secret: ${RAZORPAY_KEY_SECRET:y7oqLKCalRJf5oVTG7hweSKN}
+
 jwt:
   secret: ${JWT_SECRET}
 

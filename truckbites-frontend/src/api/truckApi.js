@@ -101,14 +101,15 @@ export async function toggleTruckStatus(id) {
 /**
  * Feature (promote) a truck for a number of days (7, 15 or 30).
  * Requires VENDOR ownership of the truck.
- * @param {string} [transactionRef] UPI transaction ID (UTR) from the vendor's UPI app —
- *                                 required; the promotion only activates once the payment is verified.
+ * @param {string} razorpayOrderId Razorpay order id returned by create-order
+ * @param {string} razorpayPaymentId Razorpay payment id returned by the Checkout handler
+ * @param {string} razorpaySignature Razorpay signature returned by the Checkout handler —
+ *                                  the promotion only activates once the payment is verified.
  */
-export async function featureTruck(truckId, days, transactionRef) {
-  logger.info(COMPONENT, 'Featuring truck', { truckId, days, transactionRef: transactionRef ? '••••' : null });
+export async function featureTruck(truckId, days, razorpayOrderId, razorpayPaymentId, razorpaySignature) {
+  logger.info(COMPONENT, 'Featuring truck', { truckId, days });
   try {
-    const params = { days };
-    if (transactionRef) params.transactionRef = transactionRef.trim();
+    const params = { days, razorpayOrderId, razorpayPaymentId, razorpaySignature };
     const response = await axiosClient.post(`/trucks/${truckId}/feature`, null, { params });
     logger.info(COMPONENT, 'Truck featured', { truckId, days, featuredUntil: response.data?.featuredUntil });
     return response;

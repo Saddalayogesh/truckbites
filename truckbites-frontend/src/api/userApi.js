@@ -50,14 +50,15 @@ export async function getMembership(userId) {
 /**
  * Subscribe (or upgrade) the customer's membership tier.
  * @param {string} tier SILVER | GOLD | PLATINUM
- * @param {string} [transactionRef] UPI transaction ID (UTR) from the customer's UPI app —
- *                                 required; the plan only activates once the payment is verified.
+ * @param {string} razorpayOrderId Razorpay order id returned by create-order
+ * @param {string} razorpayPaymentId Razorpay payment id returned by the Checkout handler
+ * @param {string} razorpaySignature Razorpay signature returned by the Checkout handler —
+ *                                  the plan only activates once the payment is verified.
  */
-export async function subscribeMembership(userId, tier, transactionRef) {
-  logger.info(COMPONENT, 'Subscribing to membership', { userId, tier, transactionRef: transactionRef ? '••••' : null });
+export async function subscribeMembership(userId, tier, razorpayOrderId, razorpayPaymentId, razorpaySignature) {
+  logger.info(COMPONENT, 'Subscribing to membership', { userId, tier });
   try {
-    const params = { userId, tier };
-    if (transactionRef) params.transactionRef = transactionRef.trim();
+    const params = { userId, tier, razorpayOrderId, razorpayPaymentId, razorpaySignature };
     const response = await axiosClient.post('/users/membership', null, { params });
     logger.info(COMPONENT, 'Membership activated', { userId, tier });
     return response;
@@ -85,14 +86,15 @@ export async function getVendorPlan(userId) {
 /**
  * Subscribe (or upgrade) the vendor's plan.
  * @param {string} plan STARTER | PRO | PREMIUM
- * @param {string} [transactionRef] UPI transaction ID (UTR) from the vendor's UPI app —
- *                                 required; the plan only activates once the payment is verified.
+ * @param {string} razorpayOrderId Razorpay order id returned by create-order
+ * @param {string} razorpayPaymentId Razorpay payment id returned by the Checkout handler
+ * @param {string} razorpaySignature Razorpay signature returned by the Checkout handler —
+ *                                  the plan only activates once the payment is verified.
  */
-export async function subscribeVendorPlan(userId, plan, transactionRef) {
-  logger.info(COMPONENT, 'Subscribing to vendor plan', { userId, plan, transactionRef: transactionRef ? '••••' : null });
+export async function subscribeVendorPlan(userId, plan, razorpayOrderId, razorpayPaymentId, razorpaySignature) {
+  logger.info(COMPONENT, 'Subscribing to vendor plan', { userId, plan });
   try {
-    const params = { userId, plan };
-    if (transactionRef) params.transactionRef = transactionRef.trim();
+    const params = { userId, plan, razorpayOrderId, razorpayPaymentId, razorpaySignature };
     const response = await axiosClient.post('/users/vendor-plan', null, { params });
     logger.info(COMPONENT, 'Vendor plan activated', { userId, plan });
     return response;

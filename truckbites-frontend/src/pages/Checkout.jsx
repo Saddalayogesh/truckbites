@@ -1,15 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Pencil, BadgeCheck } from 'lucide-react';
+import { MapPin, Pencil, CreditCard } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { createOrder } from '../api/orderApi';
-import { processPayment } from '../api/paymentApi';
+import { createRazorpayOrder, verifyRazorpayPayment } from '../api/paymentApi';
 import { getMembership } from '../api/userApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
-import UpiPayment from '../components/UpiPayment';
+import { openRazorpayCheckout } from '../utils/razorpay';
 import logger from '../utils/logger';
-import { isValidUtr } from '../utils/upi';
 import { NON_MEMBER, formatINR, estimateCartPricing } from '../utils/pricing';
 
 const COMPONENT = 'Checkout';
@@ -31,8 +30,6 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [membership, setMembership] = useState(NON_MEMBER);
-  const [upiRef, setUpiRef] = useState('');
-  const [upiRefError, setUpiRefError] = useState('');
 
   // Load the customer's membership tier for the price breakdown
   useEffect(() => {
@@ -58,40 +55,20 @@ export default function Checkout() {
     }
   }, [items, navigate]);
 
-  // Dummy label for the QR — the food truck name(s) in the cart, never the real UPI ID
-  const paymentLabel = useMemo(() => {
-    const truckNames = [...new Set(items.map((i) => i.truckName).filter(Boolean))];
-    if (truckNames.length === 1) return truckNames[0];
-    if (truckNames.length > 1) return truckNames.join(' + ');
-    return 'TruckBites';
-  }, [items]);
-
   const handlePlaceOrder = async () => {
-    // UPI payment verification: the customer must provide the transaction
-    // reference (UTR) from their UPI app — the gateway only succeeds with it.
-    const trimmedRef = upiRef.trim();
-    if (!trimmedRef) {
-      setUpiRefError('Enter the UPI transaction ID from your payment app to verify the payment.');
-      addToast('Enter your UPI transaction ID', 'warning');
-      return;
-    }
-    if (!isValidUtr(trimmedRef)) {
-      setUpiRefError('That does not look like a valid UPI transaction ID (6+ letters/numbers).');
-      addToast('Invalid UPI transaction ID', 'warning');
-      return;
-    }
-
     setSubmitting(true);
     setError(null);
-    setUpiRefError('');
 
     try {
-      // Since backend only supports single truck per order
-      // create one order per truck in the cart
-      const orderPromises = truckIds.map(async (truckId) => {
+      const customerEmail = user?.email || 'customer@truckbites.com';
+      const orders = [];
+
+      // Since the backend only supports a single truck per order, create one
+      // order per truck in the cart and pay for each through Razorpay in turn.
+      for (const truckId of truckIds) {
         const truckItems = itemsByTruck[truckId];
         const orderPayload = {
-          customerEmail: user?.email || 'customer@truckbites.com',
+          customerEmail,
           truckId,
           notes: notes.trim() || null,
           items: truckItems.map((ci) => ({
@@ -104,19 +81,45 @@ export default function Checkout() {
         const orderRes = await createOrder(orderPayload);
         const order = orderRes.data;
 
-        logger.info(COMPONENT, 'Processing payment', { orderId: order.id, amount: order.totalAmount });
-        const paymentRes = await processPayment({
+        // 1. Create a Razorpay order server-side
+        logger.info(COMPONENT, 'Creating Razorpay order', { orderId: order.id, amount: order.totalAmount });
+        const rpRes = await createRazorpayOrder({
           orderId: order.id,
           amount: order.totalAmount,
-          method: 'UPI',
-          transactionRef: trimmedRef,
+          currency: 'INR',
+          receipt: 'order_' + order.id,
+          description: 'TruckBites order',
+          customerEmail,
+        });
+        const rpOrder = rpRes.data;
+
+        // 2. Open the Razorpay Checkout — the customer completes the payment here
+        const payment = await openRazorpayCheckout({
+          keyId: rpOrder.keyId,
+          amount: rpOrder.amount,
+          currency: rpOrder.currency,
+          orderId: rpOrder.razorpayOrderId,
+          name: 'TruckBites',
+          description: 'TruckBites order',
+          prefill: { email: customerEmail },
         });
 
-        // The gateway verifies the UTR — if payment was not verified, treat the
-        // order as unpaid: surface the failure instead of a success toast.
+        // 3. Verify the payment signature and record the payment
+        const paymentRes = await verifyRazorpayPayment({
+          orderId: order.id,
+          amount: order.totalAmount,
+          method: 'RAZORPAY',
+          customerEmail,
+          razorpayOrderId: payment.razorpayOrderId,
+          razorpayPaymentId: payment.razorpayPaymentId,
+          razorpaySignature: payment.razorpaySignature,
+        });
+
+        // If the signature could not be verified, surface the failure instead
+        // of a success toast.
         if (paymentRes.data?.status !== 'SUCCESS') {
           throw new Error(
-            'Payment could not be verified. Check your UPI transaction ID and try again. ' +
+            'Payment could not be verified. Please try again. ' +
             'Any unpaid orders created just now can be cancelled from My Orders within 60 seconds.'
           );
         }
@@ -124,15 +127,12 @@ export default function Checkout() {
         logger.info(COMPONENT, 'Payment verified', {
           orderId: order.id,
           paymentId: paymentRes.data?.id,
-          transactionRef: paymentRes.data?.transactionRef,
         });
 
-        return order;
-      });
+        orders.push(order);
+      }
 
-      const orders = await Promise.all(orderPromises);
       clearCart();
-
       addToast(
         orders.length > 1
           ? `${orders.length} orders placed successfully!`
@@ -144,10 +144,13 @@ export default function Checkout() {
       const lastOrderId = orders[orders.length - 1].id;
       navigate('/orders?orderId=' + lastOrderId);
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Something went wrong. Please try again.';
+      const cancelled = err.message === 'Payment cancelled';
+      const message = cancelled
+        ? 'Payment cancelled. Your cart is saved — you can try again.'
+        : (err.response?.data?.message || err.message || 'Something went wrong. Please try again.');
       logger.error(COMPONENT, 'Checkout failed', { error: message });
       setError(message);
-      addToast(message, 'error');
+      addToast(message, cancelled ? 'info' : 'error');
     } finally {
       setSubmitting(false);
     }
@@ -211,46 +214,14 @@ export default function Checkout() {
             <p className="text-xs text-body/60 mt-2">Share any dietary preferences or special instructions with the vendor.</p>
           </div>
 
-          {/* UPI payment — QR only */}
+          {/* Payment — Razorpay */}
           <div className="card p-6">
-            <h2 className="text-lg font-heading font-semibold text-ink mb-4">Pay via UPI</h2>
-            <UpiPayment
-              label={paymentLabel}
-              amount={pricing.total}
-              note={truckIds.length === 1 ? 'TruckBites order' : 'TruckBites cart order'}
-            />
-
-            {/* UPI verification */}
-            <div className="mt-5 pt-5 border-t border-line">
-              <label
-                htmlFor="upi-ref"
-                className="flex items-center gap-1.5 text-sm font-heading font-semibold text-ink mb-1.5"
-              >
-                <BadgeCheck className="w-4 h-4 text-primary" strokeWidth={2} />
-                UPI Transaction ID
-              </label>
-              <input
-                id="upi-ref"
-                type="text"
-                inputMode="text"
-                value={upiRef}
-                onChange={(e) => { setUpiRef(e.target.value); if (upiRefError) setUpiRefError(''); }}
-                placeholder="e.g. 123456789012"
-                className="input-field text-center font-mono tracking-widest"
-                aria-invalid={!!upiRefError}
-                autoComplete="off"
-              />
-              <p className="text-xs text-body/60 mt-2">
-                After paying in your UPI app, copy the transaction ID / UTR shown in the payment
-                confirmation and enter it above. Your order is only confirmed once the payment is verified.
-              </p>
-              {upiRefError && (
-                <p className="text-xs text-error mt-1.5">{upiRefError}</p>
-              )}
-            </div>
-
-            <p className="text-xs text-body/60 mt-4 text-center">
-              Scan the QR with any UPI app, complete the payment, then confirm your order below.
+            <h2 className="text-lg font-heading font-semibold text-ink mb-2 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" strokeWidth={2} /> Payment
+            </h2>
+            <p className="text-sm text-body">
+              Pay securely with <strong className="text-ink">Razorpay</strong> using UPI, cards, net
+              banking or wallets. A secure payment window will open when you place your order.
             </p>
           </div>
 

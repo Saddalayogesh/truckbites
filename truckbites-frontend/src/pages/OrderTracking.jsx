@@ -217,7 +217,7 @@ function OrderCard({ order, onCancel }) {
                   {payment.status === 'SUCCESS' ? 'Payment verified' : payment.status === 'FAILED' ? 'Payment not verified' : 'Payment pending'}
                 </p>
                 {payment.transactionRef && (
-                  <p className="text-xs text-body/70 mt-0.5 font-mono">TXN {payment.transactionRef}</p>
+                  <p className="text-xs text-body/70 mt-0.5 font-mono">Ref {payment.transactionRef}</p>
                 )}
               </div>
             </div>

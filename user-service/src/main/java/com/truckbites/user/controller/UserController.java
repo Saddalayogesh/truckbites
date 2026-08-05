@@ -129,17 +129,22 @@ public class UserController {
             @Parameter(description = "Membership tier to subscribe to", example = "GOLD", required = true,
                     schema = @Schema(allowableValues = {"SILVER", "GOLD", "PLATINUM"}))
             @RequestParam MembershipTier tier,
-            @Parameter(description = "UPI transaction reference (UTR) from the customer's UPI app. " +
+            @Parameter(description = "Razorpay order id returned by create-order", example = "order_Nh4bXzq8", required = true)
+            @RequestParam String razorpayOrderId,
+            @Parameter(description = "Razorpay payment id returned by the Checkout handler", example = "pay_Nh4bXzq8", required = true)
+            @RequestParam String razorpayPaymentId,
+            @Parameter(description = "Razorpay signature returned by the Checkout handler. " +
                     "Required — the plan only activates once the payment is verified.",
-                    example = "123456789012")
-            @RequestParam(required = false) String transactionRef,
+                    example = "0d2f3a...", required = true)
+            @RequestParam String razorpaySignature,
             Authentication authentication) {
         Long userId = extractUserId(authentication);
         log.info("Subscribe membership: userId={}, tier={}", userId, tier);
         if (tier == MembershipTier.NONE) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(userService.subscribeMembership(userId, tier, transactionRef));
+        return ResponseEntity.ok(userService.subscribeMembership(
+                userId, tier, razorpayOrderId, razorpayPaymentId, razorpaySignature));
     }
 
     @DeleteMapping("/membership")
@@ -194,10 +199,14 @@ public class UserController {
             @Parameter(description = "Vendor plan to subscribe to", example = "PRO", required = true,
                     schema = @Schema(allowableValues = {"STARTER", "PRO", "PREMIUM"}))
             @RequestParam VendorPlan plan,
-            @Parameter(description = "UPI transaction reference (UTR) from the vendor's UPI app. " +
+            @Parameter(description = "Razorpay order id returned by create-order", example = "order_Nh4bXzq8", required = true)
+            @RequestParam String razorpayOrderId,
+            @Parameter(description = "Razorpay payment id returned by the Checkout handler", example = "pay_Nh4bXzq8", required = true)
+            @RequestParam String razorpayPaymentId,
+            @Parameter(description = "Razorpay signature returned by the Checkout handler. " +
                     "Required — the plan only activates once the payment is verified.",
-                    example = "123456789012")
-            @RequestParam(required = false) String transactionRef,
+                    example = "0d2f3a...", required = true)
+            @RequestParam String razorpaySignature,
             Authentication authentication) {
         checkVendorOrAdminRole(authentication);
         Long userId = extractUserId(authentication);
@@ -205,7 +214,8 @@ public class UserController {
         if (plan == VendorPlan.FREE) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(userService.subscribeVendorPlan(userId, plan, transactionRef));
+        return ResponseEntity.ok(userService.subscribeVendorPlan(
+                userId, plan, razorpayOrderId, razorpayPaymentId, razorpaySignature));
     }
 
     @DeleteMapping("/vendor-plan")

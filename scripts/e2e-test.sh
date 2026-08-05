@@ -68,11 +68,11 @@ check 'GET /orders/my-orders' '200' "$C"
 C=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CTOKEN" "$BASE/orders/$ORDERID")
 check 'GET /orders/{id}' '200' "$C"
 
-echo '========== PAYMENT =========='
+echo '========== PAYMENT (Razorpay) =========='
 AMOUNT=$(echo "$ORDER" | python -c 'import json,sys; print(json.load(sys.stdin)["totalAmount"])' 2>/dev/null)
-PAY=$(curl -s -X POST $BASE/payments -H "Authorization: Bearer $CTOKEN" -H 'Content-Type: application/json' -d "{\"orderId\":$ORDERID,\"amount\":$AMOUNT,\"method\":\"CARD\"}")
-PSTATUS=$(echo "$PAY" | python -c 'import json,sys; print(json.load(sys.stdin)["status"])' 2>/dev/null)
-echo "  payment status: $PSTATUS"
+RP=$(curl -s -X POST $BASE/payments/razorpay/order -H "Authorization: Bearer $CTOKEN" -H 'Content-Type: application/json' -d "{\"orderId\":$ORDERID,\"amount\":$AMOUNT,\"currency\":\"INR\"}")
+RPORDER=$(echo "$RP" | python -c 'import json,sys; print(json.load(sys.stdin)["razorpayOrderId"])' 2>/dev/null)
+if [ -n "$RPORDER" ]; then PASS=$((PASS+1)); echo "  ✅ POST /payments/razorpay/order (razorpay order $RPORDER created, amount=$AMOUNT)"; else FAIL=$((FAIL+1)); echo "  ❌ POST /payments/razorpay/order failed: $RP"; fi
 C=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $CTOKEN" "$BASE/payments/order/$ORDERID")
 check 'GET /payments/order/{orderId}' '200' "$C"
 

@@ -1,7 +1,9 @@
 package com.truckbites.payment.service;
 
 import com.truckbites.common.exception.ResourceNotFoundException;
-import com.truckbites.payment.dto.PaymentRequest;
+import com.truckbites.payment.dto.CreateRazorpayOrderRequest;
+import com.truckbites.payment.dto.RazorpayOrderResponse;
+import com.truckbites.payment.dto.VerifyRazorpayPaymentRequest;
 import com.truckbites.payment.dto.PaymentResponse;
 import com.truckbites.payment.event.PaymentEventPublisher;
 import com.truckbites.payment.model.Payment;
@@ -22,8 +24,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import java.math.BigDecimal;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,11 +35,18 @@ import static org.mockito.Mockito.when;
 @DisplayName("PaymentService Unit Tests")
 class PaymentServiceTest {
 
+    private static final String RAZORPAY_ORDER_ID = "order_test123";
+    private static final String RAZORPAY_PAYMENT_ID = "pay_test123";
+    private static final String RAZORPAY_SIGNATURE = "abc123signature";
+
     @Mock
     private PaymentRepository paymentRepository;
 
     @Mock
     private PaymentEventPublisher eventPublisher;
+
+    @Mock
+    private RazorpayService razorpayService;
 
     @Captor
     private ArgumentCaptor<Payment> paymentCaptor;
@@ -48,186 +55,170 @@ class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentService(paymentRepository, eventPublisher);
+        paymentService = new PaymentService(paymentRepository, eventPublisher, razorpayService);
     }
 
     @Nested
-    @DisplayName("processPayment()")
-    class ProcessPayment {
+    @DisplayName("createRazorpayOrder()")
+    class CreateRazorpayOrder {
 
         @Test
-        @DisplayName("should process payment successfully with valid amount")
-        void shouldProcessPaymentSuccessfully() {
+        @DisplayName("should create a Razorpay order and map the response")
+        void shouldCreateOrder() {
             // Given
-            PaymentRequest request = new PaymentRequest();
+            CreateRazorpayOrderRequest request = new CreateRazorpayOrderRequest();
             request.setOrderId(1L);
-            request.setAmount(BigDecimal.valueOf(25.00));
-            request.setMethod("CARD");
-            request.setTransactionRef("TXN-TEST123");
+            request.setAmount(BigDecimal.valueOf(499.00));
+            request.setCurrency("INR");
+            request.setReceipt("order_1");
+            request.setDescription("TruckBites order");
 
-            Payment savedPayment = Payment.builder()
-                    .id(1L)
-                    .orderId(1L)
-                    .amount(BigDecimal.valueOf(25.00))
-                    .status(PaymentStatus.SUCCESS)
-                    .method("CARD")
-                    .transactionRef("TXN-TEST123-1")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+            when(razorpayService.createOrder(any(), any(), any(), any()))
+                    .thenReturn(new RazorpayService.RazorpayOrderResult(RAZORPAY_ORDER_ID, 49900, "INR", "rzp_test_key"));
 
             // When
-            PaymentResponse response = paymentService.processPayment(request);
+            RazorpayOrderResponse response = paymentService.createRazorpayOrder(request);
 
             // Then
             assertThat(response).isNotNull();
-            assertThat(response.getId()).isEqualTo(1L);
             assertThat(response.getOrderId()).isEqualTo(1L);
-            assertThat(response.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(25.00));
-            assertThat(response.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
-            assertThat(response.getMethod()).isEqualTo("CARD");
-            assertThat(response.getTransactionRef()).isEqualTo("TXN-TEST123-1");
-            assertThat(response.getCreatedAt()).isNotNull();
+            assertThat(response.getRazorpayOrderId()).isEqualTo(RAZORPAY_ORDER_ID);
+            assertThat(response.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(499.00));
+            assertThat(response.getCurrency()).isEqualTo("INR");
+            assertThat(response.getKeyId()).isEqualTo("rzp_test_key");
 
-            verify(paymentRepository).save(any(Payment.class));
+            verify(razorpayService).createOrder(BigDecimal.valueOf(499.00), "INR", "order_1", "TruckBites order");
+        }
+
+        @Test
+        @DisplayName("should default currency to INR when not supplied")
+        void shouldDefaultCurrencyToInr() {
+            // Given
+            CreateRazorpayOrderRequest request = new CreateRazorpayOrderRequest();
+            request.setOrderId(2L);
+            request.setAmount(BigDecimal.valueOf(99.00));
+
+            when(razorpayService.createOrder(any(), any(), any(), any()))
+                    .thenReturn(new RazorpayService.RazorpayOrderResult("order_2", 9900, "INR", "rzp_test_key"));
+
+            // When
+            RazorpayOrderResponse response = paymentService.createRazorpayOrder(request);
+
+            // Then
+            assertThat(response.getCurrency()).isEqualTo("INR");
+            verify(razorpayService).createOrder(BigDecimal.valueOf(99.00), "INR", "order_2", null);
+        }
+    }
+
+    @Nested
+    @DisplayName("verifyAndRecordPayment()")
+    class VerifyAndRecordPayment {
+
+        private VerifyRazorpayPaymentRequest request() {
+            VerifyRazorpayPaymentRequest request = new VerifyRazorpayPaymentRequest();
+            request.setOrderId(42L);
+            request.setAmount(BigDecimal.valueOf(499.00));
+            request.setMethod("RAZORPAY");
+            request.setCustomerEmail("customer@example.com");
+            request.setRazorpayOrderId(RAZORPAY_ORDER_ID);
+            request.setRazorpayPaymentId(RAZORPAY_PAYMENT_ID);
+            request.setRazorpaySignature(RAZORPAY_SIGNATURE);
+            return request;
+        }
+
+        @Test
+        @DisplayName("should record payment as SUCCESS and publish order.paid when signature and amount match")
+        void shouldRecordSuccessWhenSignatureAndAmountValid() {
+            // Given
+            when(razorpayService.verifySignature(RAZORPAY_ORDER_ID, RAZORPAY_PAYMENT_ID, RAZORPAY_SIGNATURE))
+                    .thenReturn(true);
+            when(razorpayService.isOrderAmountMatching(RAZORPAY_ORDER_ID, 49900L))
+                    .thenReturn(true);
+
+            Payment savedPayment = Payment.builder()
+                    .id(1L)
+                    .orderId(42L)
+                    .customerEmail("customer@example.com")
+                    .amount(BigDecimal.valueOf(499.00))
+                    .status(PaymentStatus.SUCCESS)
+                    .method("RAZORPAY")
+                    .transactionRef(RAZORPAY_PAYMENT_ID)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+
+            // When
+            PaymentResponse response = paymentService.verifyAndRecordPayment(request());
+
+            // Then
+            assertThat(response).isNotNull();
+            assertThat(response.getOrderId()).isEqualTo(42L);
+            assertThat(response.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+            assertThat(response.getMethod()).isEqualTo("RAZORPAY");
+            assertThat(response.getTransactionRef()).isEqualTo(RAZORPAY_PAYMENT_ID);
+
+            verify(paymentRepository).save(paymentCaptor.capture());
+            assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+            assertThat(paymentCaptor.getValue().getTransactionRef()).isEqualTo(RAZORPAY_PAYMENT_ID);
             verify(eventPublisher).publishOrderPaid(any());
         }
 
         @Test
-        @DisplayName("should fail payment when UPI transaction reference is missing")
-        void shouldFailPaymentWhenTransactionRefMissing() {
+        @DisplayName("should record payment as FAILED when the captured amount does not match")
+        void shouldRecordFailureWhenAmountMismatch() {
             // Given
-            PaymentRequest request = new PaymentRequest();
-            request.setOrderId(1L);
-            request.setAmount(BigDecimal.valueOf(25.00));
-            request.setMethod("UPI");
-            // No transactionRef supplied — payment cannot be verified
+            when(razorpayService.verifySignature(RAZORPAY_ORDER_ID, RAZORPAY_PAYMENT_ID, RAZORPAY_SIGNATURE))
+                    .thenReturn(true);
+            when(razorpayService.isOrderAmountMatching(RAZORPAY_ORDER_ID, 49900L))
+                    .thenReturn(false);
+
+            Payment savedPayment = Payment.builder()
+                    .id(6L)
+                    .orderId(42L)
+                    .amount(BigDecimal.valueOf(499.00))
+                    .status(PaymentStatus.FAILED)
+                    .method("RAZORPAY")
+                    .transactionRef(RAZORPAY_PAYMENT_ID)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
+
+            // When
+            PaymentResponse response = paymentService.verifyAndRecordPayment(request());
+
+            // Then
+            assertThat(response.getStatus()).isEqualTo(PaymentStatus.FAILED);
+            verify(paymentRepository).save(paymentCaptor.capture());
+            assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.FAILED);
+            verify(eventPublisher, never()).publishOrderPaid(any());
+        }
+
+        @Test
+        @DisplayName("should record payment as FAILED and not publish when signature is invalid")
+        void shouldRecordFailureWhenSignatureInvalid() {
+            // Given
+            when(razorpayService.verifySignature(RAZORPAY_ORDER_ID, RAZORPAY_PAYMENT_ID, RAZORPAY_SIGNATURE))
+                    .thenReturn(false);
 
             Payment savedPayment = Payment.builder()
                     .id(5L)
-                    .orderId(1L)
-                    .amount(BigDecimal.valueOf(25.00))
-                    .status(PaymentStatus.FAILED)
-                    .method("UPI")
-                    .transactionRef("TXN-GEN")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
-
-            // When
-            PaymentResponse response = paymentService.processPayment(request);
-
-            // Then
-            assertThat(response.getStatus()).isEqualTo(PaymentStatus.FAILED);
-            verify(paymentRepository).save(paymentCaptor.capture());
-            assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.FAILED);
-            verify(eventPublisher, never()).publishOrderPaid(any());
-        }
-
-        @Test
-        @DisplayName("should fail payment when amount is zero")
-        void shouldFailPaymentWhenAmountIsZero() {
-            // Given
-            PaymentRequest request = new PaymentRequest();
-            request.setOrderId(1L);
-            request.setAmount(BigDecimal.ZERO);
-            request.setMethod("CARD");
-            request.setTransactionRef("TXN-ZERO123");
-
-            Payment savedPayment = Payment.builder()
-                    .id(2L)
-                    .orderId(1L)
-                    .amount(BigDecimal.ZERO)
-                    .status(PaymentStatus.FAILED)
-                    .method("CARD")
-                    .transactionRef("TXN-FAILED")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
-
-            // When
-            PaymentResponse response = paymentService.processPayment(request);
-
-            // Then
-            assertThat(response).isNotNull();
-            assertThat(response.getStatus()).isEqualTo(PaymentStatus.FAILED);
-
-            verify(paymentRepository).save(paymentCaptor.capture());
-            assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.FAILED);
-            verify(eventPublisher, never()).publishOrderPaid(any());
-        }
-
-        @Test
-        @DisplayName("should fail payment when amount is negative")
-        void shouldFailPaymentWhenAmountIsNegative() {
-            // Given
-            PaymentRequest request = new PaymentRequest();
-            request.setOrderId(1L);
-            request.setAmount(BigDecimal.valueOf(-10.00));
-            request.setMethod("CARD");
-            request.setTransactionRef("TXN-NEG1234");
-
-            Payment savedPayment = Payment.builder()
-                    .id(3L)
-                    .orderId(1L)
-                    .amount(BigDecimal.valueOf(-10.00))
-                    .status(PaymentStatus.FAILED)
-                    .method("CARD")
-                    .transactionRef("TXN-FAILED")
-                    .createdAt(LocalDateTime.now())
-                    .build();
-
-            when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
-
-            // When
-            PaymentResponse response = paymentService.processPayment(request);
-
-            // Then
-            assertThat(response.getStatus()).isEqualTo(PaymentStatus.FAILED);
-
-            verify(paymentRepository).save(paymentCaptor.capture());
-            assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.FAILED);
-            verify(eventPublisher, never()).publishOrderPaid(any());
-        }
-
-        @Test
-        @DisplayName("should save payment with correct orderId and method")
-        void shouldSavePaymentWithCorrectFields() {
-            // Given
-            PaymentRequest request = new PaymentRequest();
-            request.setOrderId(42L);
-            request.setAmount(BigDecimal.valueOf(15.50));
-            request.setMethod("UPI");
-            request.setTransactionRef("TXN-UPI123");
-
-            Payment savedPayment = Payment.builder()
-                    .id(4L)
                     .orderId(42L)
-                    .amount(BigDecimal.valueOf(15.50))
-                    .status(PaymentStatus.SUCCESS)
-                    .method("UPI")
-                    .transactionRef("TXN-UPI123")
+                    .amount(BigDecimal.valueOf(499.00))
+                    .status(PaymentStatus.FAILED)
+                    .method("RAZORPAY")
+                    .transactionRef(RAZORPAY_PAYMENT_ID)
                     .createdAt(LocalDateTime.now())
                     .build();
-
             when(paymentRepository.save(any(Payment.class))).thenReturn(savedPayment);
 
             // When
-            paymentService.processPayment(request);
+            PaymentResponse response = paymentService.verifyAndRecordPayment(request());
 
             // Then
+            assertThat(response.getStatus()).isEqualTo(PaymentStatus.FAILED);
             verify(paymentRepository).save(paymentCaptor.capture());
-            Payment captured = paymentCaptor.getValue();
-
-            assertThat(captured.getOrderId()).isEqualTo(42L);
-            assertThat(captured.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(15.50));
-            assertThat(captured.getMethod()).isEqualTo("UPI");
-            assertThat(captured.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
-            // The customer-provided UTR is stored, suffixed with the orderId to stay unique
-            assertThat(captured.getTransactionRef()).isEqualTo("TXN-UPI123-42");
+            assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.FAILED);
+            verify(eventPublisher, never()).publishOrderPaid(any());
         }
     }
 
@@ -250,7 +241,7 @@ class PaymentServiceTest {
             Payment payment2 = Payment.builder()
                     .id(2L).orderId(orderId)
                     .amount(BigDecimal.valueOf(20.00)).status(PaymentStatus.FAILED)
-                    .method("UPI").transactionRef("TXN-002")
+                    .method("RAZORPAY").transactionRef("TXN-002")
                     .createdAt(now.minusMinutes(5))
                     .build();
 
@@ -275,7 +266,7 @@ class PaymentServiceTest {
             assertThat(responses.get(1).getOrderId()).isEqualTo(42L);
             assertThat(responses.get(1).getAmount()).isEqualByComparingTo(BigDecimal.valueOf(20.00));
             assertThat(responses.get(1).getStatus()).isEqualTo(PaymentStatus.FAILED);
-            assertThat(responses.get(1).getMethod()).isEqualTo("UPI");
+            assertThat(responses.get(1).getMethod()).isEqualTo("RAZORPAY");
             assertThat(responses.get(1).getTransactionRef()).isEqualTo("TXN-002");
             assertThat(responses.get(1).getCreatedAt()).isEqualTo(now.minusMinutes(5));
 
@@ -311,7 +302,7 @@ class PaymentServiceTest {
             Payment payment = Payment.builder()
                     .id(paymentId).orderId(42L)
                     .amount(BigDecimal.valueOf(15.99)).status(PaymentStatus.SUCCESS)
-                    .method("UPI").transactionRef("TXN-ABC")
+                    .method("RAZORPAY").transactionRef("TXN-ABC")
                     .createdAt(now)
                     .build();
 
@@ -326,7 +317,7 @@ class PaymentServiceTest {
             assertThat(response.getOrderId()).isEqualTo(42L);
             assertThat(response.getAmount()).isEqualByComparingTo(BigDecimal.valueOf(15.99));
             assertThat(response.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
-            assertThat(response.getMethod()).isEqualTo("UPI");
+            assertThat(response.getMethod()).isEqualTo("RAZORPAY");
             assertThat(response.getTransactionRef()).isEqualTo("TXN-ABC");
             assertThat(response.getCreatedAt()).isEqualTo(now);
         }

@@ -2,8 +2,10 @@ package com.truckbites.payment.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.truckbites.payment.dto.PaymentRequest;
+import com.truckbites.payment.dto.CreateRazorpayOrderRequest;
 import com.truckbites.payment.dto.PaymentResponse;
+import com.truckbites.payment.dto.RazorpayOrderResponse;
+import com.truckbites.payment.dto.VerifyRazorpayPaymentRequest;
 import com.truckbites.payment.model.PaymentStatus;
 import com.truckbites.payment.service.PaymentService;
 import io.jsonwebtoken.Jwts;
@@ -69,8 +71,8 @@ class PaymentControllerTest {
                 .orderId(1L)
                 .amount(BigDecimal.valueOf(25.00))
                 .status(PaymentStatus.SUCCESS)
-                .method("CARD")
-                .transactionRef("TXN-A1B2C3D4")
+                .method("RAZORPAY")
+                .transactionRef("pay_A1B2C3D4")
                 .createdAt(LocalDateTime.now())
                 .build();
     }
@@ -81,6 +83,7 @@ class PaymentControllerTest {
         return Jwts.builder()
                 .setSubject(email)
                 .claim("role", role)
+                .claim("userId", 1L)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 3600000))
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -88,46 +91,52 @@ class PaymentControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/payments")
-    class ProcessPayment {
+    @DisplayName("POST /api/payments/razorpay/order")
+    class CreateRazorpayOrder {
 
         @Test
-        @DisplayName("should return 201 and payment response on successful payment")
-        void shouldReturn201OnSuccessfulPayment() throws Exception {
+        @DisplayName("should return 200 with razorpay order details")
+        void shouldReturn200WithOrderDetails() throws Exception {
             // Given
-            PaymentRequest request = new PaymentRequest();
+            CreateRazorpayOrderRequest request = new CreateRazorpayOrderRequest();
             request.setOrderId(1L);
-            request.setAmount(BigDecimal.valueOf(25.00));
-            request.setMethod("CARD");
+            request.setAmount(BigDecimal.valueOf(499.00));
+            request.setCurrency("INR");
 
-            when(paymentService.processPayment(any(PaymentRequest.class)))
-                    .thenReturn(successResponse);
+            RazorpayOrderResponse orderResponse = RazorpayOrderResponse.builder()
+                    .orderId(1L)
+                    .razorpayOrderId("order_ABC123")
+                    .amount(BigDecimal.valueOf(499.00))
+                    .currency("INR")
+                    .keyId("rzp_test_key")
+                    .build();
+
+            when(paymentService.createRazorpayOrder(any(CreateRazorpayOrderRequest.class)))
+                    .thenReturn(orderResponse);
 
             // When & Then
-            mockMvc.perform(post("/api/payments")
+            mockMvc.perform(post("/api/payments/razorpay/order")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request))
                             .header("Authorization", "Bearer " + validToken))
-                    .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.id", is(1)))
+                    .andExpect(status().isOk())
                     .andExpect(jsonPath("$.orderId", is(1)))
-                    .andExpect(jsonPath("$.amount", is(25.00)))
-                    .andExpect(jsonPath("$.status", is("SUCCESS")))
-                    .andExpect(jsonPath("$.method", is("CARD")))
-                    .andExpect(jsonPath("$.transactionRef", is("TXN-A1B2C3D4")));
+                    .andExpect(jsonPath("$.razorpayOrderId", is("order_ABC123")))
+                    .andExpect(jsonPath("$.amount", is(499.00)))
+                    .andExpect(jsonPath("$.currency", is("INR")))
+                    .andExpect(jsonPath("$.keyId", is("rzp_test_key")));
         }
 
         @Test
         @DisplayName("should return 401 when no auth token provided")
         void shouldReturn401WhenNoAuth() throws Exception {
             // Given
-            PaymentRequest request = new PaymentRequest();
+            CreateRazorpayOrderRequest request = new CreateRazorpayOrderRequest();
             request.setOrderId(1L);
-            request.setAmount(BigDecimal.valueOf(25.00));
-            request.setMethod("CARD");
+            request.setAmount(BigDecimal.valueOf(499.00));
 
             // When & Then — no Authorization header
-            mockMvc.perform(post("/api/payments")
+            mockMvc.perform(post("/api/payments/razorpay/order")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
@@ -139,13 +148,83 @@ class PaymentControllerTest {
             // Given
             String invalidRequest = """
                     {
-                        "orderId": 1,
-                        "method": "CARD"
+                        "orderId": 1
                     }
                     """;
 
             // When & Then
-            mockMvc.perform(post("/api/payments")
+            mockMvc.perform(post("/api/payments/razorpay/order")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidRequest)
+                            .header("Authorization", "Bearer " + validToken))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/payments/razorpay/verify")
+    class VerifyRazorpayPayment {
+
+        @Test
+        @DisplayName("should return 201 and payment response on successful verification")
+        void shouldReturn201OnSuccessfulVerification() throws Exception {
+            // Given
+            VerifyRazorpayPaymentRequest request = new VerifyRazorpayPaymentRequest();
+            request.setOrderId(1L);
+            request.setAmount(BigDecimal.valueOf(499.00));
+            request.setRazorpayOrderId("order_ABC123");
+            request.setRazorpayPaymentId("pay_DEF456");
+            request.setRazorpaySignature("signature123");
+
+            when(paymentService.verifyAndRecordPayment(any(VerifyRazorpayPaymentRequest.class)))
+                    .thenReturn(successResponse);
+
+            // When & Then
+            mockMvc.perform(post("/api/payments/razorpay/verify")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request))
+                            .header("Authorization", "Bearer " + validToken))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.id", is(1)))
+                    .andExpect(jsonPath("$.orderId", is(1)))
+                    .andExpect(jsonPath("$.status", is("SUCCESS")))
+                    .andExpect(jsonPath("$.method", is("RAZORPAY")))
+                    .andExpect(jsonPath("$.transactionRef", is("pay_A1B2C3D4")));
+        }
+
+        @Test
+        @DisplayName("should return 401 when no auth token provided")
+        void shouldReturn401WhenNoAuth() throws Exception {
+            // Given
+            VerifyRazorpayPaymentRequest request = new VerifyRazorpayPaymentRequest();
+            request.setOrderId(1L);
+            request.setAmount(BigDecimal.valueOf(499.00));
+            request.setRazorpayOrderId("order_ABC123");
+            request.setRazorpayPaymentId("pay_DEF456");
+            request.setRazorpaySignature("signature123");
+
+            // When & Then — no Authorization header
+            mockMvc.perform(post("/api/payments/razorpay/verify")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        @DisplayName("should return 400 when razorpaySignature is missing")
+        void shouldReturn400WhenSignatureMissing() throws Exception {
+            // Given
+            String invalidRequest = """
+                    {
+                        "orderId": 1,
+                        "amount": 499.00,
+                        "razorpayOrderId": "order_ABC123",
+                        "razorpayPaymentId": "pay_DEF456"
+                    }
+                    """;
+
+            // When & Then
+            mockMvc.perform(post("/api/payments/razorpay/verify")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(invalidRequest)
                             .header("Authorization", "Bearer " + validToken))
@@ -153,57 +232,20 @@ class PaymentControllerTest {
         }
 
         @Test
-        @DisplayName("should return 400 when orderId is null")
-        void shouldReturn400WhenOrderIdIsNull() throws Exception {
-            // Given
-            String invalidRequest = """
-                    {
-                        "amount": 25.00,
-                        "method": "CARD"
-                    }
-                    """;
-
-            // When & Then
-            mockMvc.perform(post("/api/payments")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(invalidRequest)
-                            .header("Authorization", "Bearer " + validToken))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("should return 400 when amount is negative")
-        void shouldReturn400WhenAmountIsNegative() throws Exception {
+        @DisplayName("should return 400 when razorpayPaymentId is missing")
+        void shouldReturn400WhenPaymentIdMissing() throws Exception {
             // Given
             String invalidRequest = """
                     {
                         "orderId": 1,
-                        "amount": -10.00,
-                        "method": "CARD"
+                        "amount": 499.00,
+                        "razorpayOrderId": "order_ABC123",
+                        "razorpaySignature": "signature123"
                     }
                     """;
 
             // When & Then
-            mockMvc.perform(post("/api/payments")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(invalidRequest)
-                            .header("Authorization", "Bearer " + validToken))
-                    .andExpect(status().isBadRequest());
-        }
-
-        @Test
-        @DisplayName("should return 400 when method is null")
-        void shouldReturn400WhenMethodIsNull() throws Exception {
-            // Given
-            String invalidRequest = """
-                    {
-                        "orderId": 1,
-                        "amount": 25.00
-                    }
-                    """;
-
-            // When & Then
-            mockMvc.perform(post("/api/payments")
+            mockMvc.perform(post("/api/payments/razorpay/verify")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(invalidRequest)
                             .header("Authorization", "Bearer " + validToken))

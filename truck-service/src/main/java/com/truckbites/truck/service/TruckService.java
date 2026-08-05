@@ -2,7 +2,8 @@ package com.truckbites.truck.service;
 
 import com.truckbites.common.exception.BadRequestException;
 import com.truckbites.common.exception.ResourceNotFoundException;
-import com.truckbites.common.payment.PaymentVerification;
+import com.truckbites.common.payment.RazorpayPaymentVerifier;
+import com.truckbites.truck.payment.RazorpayOrderAmountVerifier;
 import com.truckbites.truck.dto.CreateTruckRequest;
 import com.truckbites.truck.dto.UpdateLocationRequest;
 import com.truckbites.truck.model.Truck;
@@ -10,19 +11,32 @@ import com.truckbites.truck.model.TruckStatus;
 import com.truckbites.truck.repository.TruckRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TruckService {
 
+    /** Featured promotion prices in paise, keyed by duration in days. */
+    private static final Map<Integer, Long> PROMO_PRICES_PAISE = Map.of(
+            7, 29900L,
+            15, 49900L,
+            30, 79900L
+    );
+
     private final TruckRepository truckRepository;
+    private final RazorpayOrderAmountVerifier razorpayOrderAmountVerifier;
+
+    @Value("${razorpay.key-secret:}")
+    private String razorpayKeySecret;
 
     public Truck createTruck(CreateTruckRequest request, Long ownerId) {
         log.info("Creating truck '{}' for ownerId: {}", request.getName(), ownerId);
@@ -122,15 +136,21 @@ public class TruckService {
      * Promotes a truck as featured for the given number of days.
      * Supported durations: 7, 15 or 30 days. Re-promoting an active promotion
      * extends it from the current expiry date.
-     * The promotion only activates once the vendor's UPI payment is verified
-     * via the supplied transaction reference (UTR).
+     * The promotion only activates once the vendor's Razorpay payment is
+     * verified via the supplied payment signature.
      */
     @Transactional
-    public Truck featureTruck(Long id, Long ownerId, Integer days, String transactionRef) {
-        PaymentVerification.requireValidUtr(transactionRef);
+    public Truck featureTruck(Long id, Long ownerId, Integer days,
+                              String razorpayOrderId, String razorpayPaymentId, String razorpaySignature) {
+        RazorpayPaymentVerifier.requireValidSignature(razorpayKeySecret, razorpayOrderId, razorpayPaymentId, razorpaySignature);
         if (days == null || (days != 7 && days != 15 && days != 30)) {
             log.warn("Invalid promotion duration: {}", days);
             throw new BadRequestException("Promotion duration must be 7, 15 or 30 days");
+        }
+        Long pricePaise = PROMO_PRICES_PAISE.get(days);
+        if (pricePaise == null || !razorpayOrderAmountVerifier.matches(razorpayOrderId, pricePaise)) {
+            log.warn("Razorpay amount mismatch for orderId={}, expectedPaise={}", razorpayOrderId, pricePaise);
+            throw new BadRequestException("Promotion payment does not match the selected duration's price. Please try again.");
         }
         log.debug("Promoting truck id: {} for {} days by ownerId: {}", id, days, ownerId);
         Truck truck = truckRepository.findByIdAndOwnerId(id, ownerId)

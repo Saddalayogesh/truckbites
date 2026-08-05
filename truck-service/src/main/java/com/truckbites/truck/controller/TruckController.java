@@ -250,8 +250,8 @@ public class TruckController {
                     "at the top of search results and trending lists. " +
                     "The authenticated vendor must own the truck. " +
                     "Pricing: 7 days - 299, 15 days - 499, 30 days - 799. " +
-                    "The promotion only activates once the vendor's UPI payment is verified " +
-                    "via the supplied transaction reference (UTR).",
+                    "The promotion only activates once the vendor's Razorpay payment is verified " +
+                    "via the supplied payment signature.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses({
@@ -265,14 +265,19 @@ public class TruckController {
     public ResponseEntity<Truck> featureTruck(
             @Parameter(description = "Truck ID", example = "1") @PathVariable Long id,
             @Parameter(description = "Promotion duration in days", example = "7") @RequestParam Integer days,
-            @Parameter(description = "UPI transaction reference (UTR) from the vendor's UPI app. " +
+            @Parameter(description = "Razorpay order id returned by create-order", example = "order_Nh4bXzq8", required = true)
+            @RequestParam String razorpayOrderId,
+            @Parameter(description = "Razorpay payment id returned by the Checkout handler", example = "pay_Nh4bXzq8", required = true)
+            @RequestParam String razorpayPaymentId,
+            @Parameter(description = "Razorpay signature returned by the Checkout handler. " +
                     "Required — the promotion only activates once the payment is verified.",
-                    example = "123456789012")
-            @RequestParam(required = false) String transactionRef,
+                    example = "0d2f3a...", required = true)
+            @RequestParam String razorpaySignature,
             Authentication authentication) {
         Long ownerId = extractUserId(authentication);
         log.info("Feature truck: id={}, days={}, ownerId={}", id, days, ownerId);
-        return ResponseEntity.ok(truckService.featureTruck(id, ownerId, days, transactionRef));
+        return ResponseEntity.ok(truckService.featureTruck(
+                id, ownerId, days, razorpayOrderId, razorpayPaymentId, razorpaySignature));
     }
 
     @DeleteMapping("/{id}")
