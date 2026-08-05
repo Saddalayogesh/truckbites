@@ -1,18 +1,92 @@
 # 🚚 TruckBites
 
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.5-6DB33F?logo=springboot)](https://spring.io/projects/spring-boot)
-[![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk)](https://openjdk.org/projects/jdk/25/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](https://docker.com)
-[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions)](https://github.com/features/actions)
+[![Java](https://img.shields.io/badge/Java-25-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/25/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://docker.com)
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF?logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![License](https://img.shields.io/badge/License-See%20LICENSE-lightgrey)](LICENSE)
 
-**TruckBites** is a full-stack microservices platform for food truck discovery, online ordering, and vendor management. Customers can browse nearby trucks by cuisine and location, place orders, make payments, and leave reviews. Vendors manage their trucks, menus, and orders through a real-time dashboard. Admins oversee the entire system through a centralized admin panel.
+**TruckBites** is a full-stack microservices platform for food truck discovery, online ordering, and vendor management. 🍔 Customers browse nearby trucks by cuisine and location, place orders, pay, and leave reviews. 🧑‍🍳 Vendors manage trucks, menus, and orders through a real-time dashboard. 🛡️ Admins oversee the whole system from a centralized admin panel.
+
+---
+
+## 💡 Why TruckBites?
+
+Unlike general-purpose food delivery apps, TruckBites is purpose-built for the mobile food truck model — trucks that move, keep irregular hours, and need lightweight tools rather than a heavyweight restaurant POS. It's also a reference implementation of a production-shaped microservices system: independent deployability, database-per-service, event-driven messaging, and observability baked in from the start, not bolted on.
+
+---
+
+## ✨ Key Features
+
+- 🔐 JWT authentication with role-based access control (`CUSTOMER`, `VENDOR`, `ADMIN`)
+- 🌐 Centralized routing through a Spring Cloud Gateway
+- 🧭 Service discovery via Eureka, config via Spring Cloud Config
+- 🚚 Truck discovery, search, favorites, and reviews
+- 🧾 Live menu & inventory management for vendors
+- 🛒 Order placement with real-time status updates over SSE
+- 💳 Razorpay-powered checkout
+- 📨 Event-driven order/payment notifications via RabbitMQ
+- ✉️ Transactional email via Brevo SMTP
+- 📊 Vendor sales analytics dashboard
+- 🐳 One-command local stack via Docker Compose
+- ⚙️ CI on every push via GitHub Actions
+
+---
+
+## 📈 Project Stats
+
+| | |
+|---|---|
+| 🏗 Business microservices | 8 |
+| 🗄 MySQL databases (one per service) | 6 |
+| 🐳 Total containers in the stack | 18 |
+| 🧪 Backend unit tests | 195 |
+| 🔌 Services with Swagger/OpenAPI docs | 8 / 11 |
+| 📨 Async event types | 2 (`order.placed`, `order.paid`) |
+
+---
+
+## ✅ Project Status
+
+| Feature | Status |
+|---|---|
+| Authentication & RBAC | ✔️ Done |
+| Truck discovery, favorites, reviews | ✔️ Done |
+| Vendor dashboard & menu management | ✔️ Done |
+| Order placement + live tracking (SSE) | ✔️ Done |
+| Razorpay payments | ✔️ Done |
+| Email notifications (RabbitMQ + Brevo) | ✔️ Done |
+| Vendor analytics dashboard | ✔️ Done |
+| Docker Compose deployment | ✔️ Done |
+| Swagger / OpenAPI docs | ✔️ Done (8/11 services) |
+| Gateway route for image upload | 🚧 In progress |
+| Kubernetes deployment | 🚧 Planned |
+| Mobile app | 🚧 Planned |
+
+---
+
+## 🛣 Roadmap
+
+- [ ] Route `/api/upload` through the API Gateway
+- [ ] Google Maps live truck location
+- [ ] Push notifications
+- [ ] Redis caching for hot read paths (truck search, menus)
+- [ ] Elasticsearch-backed search
+- [ ] Kubernetes manifests / Helm chart
+- [ ] Native mobile app
 
 ---
 
 ## 📋 Table of Contents
 
+- [Why TruckBites?](#-why-truckbites)
+- [Key Features](#-key-features)
+- [Project Stats](#-project-stats)
+- [Project Status](#-project-status)
+- [Roadmap](#-roadmap)
 - [Architecture Overview](#-architecture-overview)
+- [Sequence Flows](#-sequence-flows)
 - [Service Matrix](#-service-matrix)
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
@@ -24,6 +98,7 @@
 - [Swagger / OpenAPI Docs](#-swagger--openapi-docs)
 - [Environment Variables](#-environment-variables)
 - [RabbitMQ Event Flow](#-rabbitmq-event-flow)
+- [Troubleshooting](#-troubleshooting)
 - [CI/CD](#-cicd)
 - [License](#-license)
 
@@ -42,7 +117,7 @@ graph TD
         GW[API Gateway<br/>:8080]
     end
 
-    subgraph "Service Discovery & Config"
+    subgraph discovery[Service Discovery and Config]
         EU[Eureka Server<br/>:8761]
         CS[Config Server<br/>:8888]
     end
@@ -57,7 +132,7 @@ graph TD
         USER_DB[(User MySQL<br/>:3309)]
     end
 
-    subgraph "Trucks & Reviews"
+    subgraph trucks[Trucks and Reviews]
         TRUCK[Truck Service<br/>:8083]
         TRUCK_DB[(Truck MySQL<br/>:3310)]
     end
@@ -86,8 +161,8 @@ graph TD
         ANALYTICS_DB[(reads Order MySQL)]
     end
 
-    subgraph Message Broker
-        RMQ[RabbitMQ<br/>:5672 / :15672]
+    subgraph broker[Message Broker]
+        RMQ[RabbitMQ<br/>:5672 and :15672]
     end
 
     subgraph Mail
@@ -97,14 +172,14 @@ graph TD
     FE -->|REST / SSE| GW
     PM -->|REST| GW
 
-    GW -->|/api/auth/**| AUTH
-    GW -->|/api/users/**| USER
-    GW -->|/api/trucks/**,/api/favorites/**,/api/reviews/**| TRUCK
-    GW -->|/api/menu/**| MENU
-    GW -->|/api/orders/**| ORDER
-    GW -->|/api/payments/**| PAY
-    GW -->|/api/notifications/**| NOTIF
-    GW -->|/api/analytics/**| ANALYTICS
+    GW -->|/api/auth| AUTH
+    GW -->|/api/users| USER
+    GW -->|/api/trucks, favorites, reviews| TRUCK
+    GW -->|/api/menu| MENU
+    GW -->|/api/orders| ORDER
+    GW -->|/api/payments| PAY
+    GW -->|/api/notifications| NOTIF
+    GW -->|/api/analytics| ANALYTICS
 
     AUTH --> AUTH_DB
     USER --> USER_DB
@@ -120,9 +195,9 @@ graph TD
     TRUCK -.->|Feign| ORDER
     ANALYTICS -.->|Feign| TRUCK
 
-    ORDER --x|order.placed| RMQ
-    PAY --x|order.paid| RMQ
-    NOTIF x--|order.placed<br/>order.paid| RMQ
+    ORDER -.->|order.placed| RMQ
+    PAY -.->|order.paid| RMQ
+    RMQ -.->|order.placed and order.paid| NOTIF
 
     NOTIF -.->|SMTP| BREVO
 
@@ -152,20 +227,64 @@ graph TD
     style BREVO fill:#0b5cff,color:#fff
 ```
 
-### Startup Order
+### 🧭 Startup Order
 
-Containers start in strict dependency order, managed by Docker Compose `depends_on` conditions:
+Containers start in strict dependency order via Docker Compose `depends_on` conditions:
 
+| Stage | Containers | Notes |
+|-------|-----------|-------|
+| 1 | `eureka-server`, `rabbitmq` | Infrastructure, starts in parallel |
+| 2 | `config-server` | After Eureka is healthy |
+| 3 | `auth-mysql`, `user-mysql`, `truck-mysql`, `menu-mysql`, `order-mysql`, `payment-mysql` | 6 databases, in parallel |
+| 4 | `auth-service`, `user-service`, `truck-service`, `payment-service`, `notification-service` | Tier-1 services, no Feign deps |
+| 5 | `menu-service`, `order-service`, `analytics-service` | Tier-2, depend on tier-1 via Feign |
+| 6 | `api-gateway` | Last — depends on all upstream services |
+
+🧮 **Total: 18 containers** (2 infra + config-server + 6 databases + 8 business services + gateway).
+
+---
+
+## 🔀 Sequence Flows
+
+### 🔑 Login
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant GW as API Gateway
+    participant A as Auth Service
+    participant DB as Auth MySQL
+
+    U->>GW: POST /api/auth/login
+    GW->>A: Forward request
+    A->>DB: Verify credentials
+    DB-->>A: User record
+    A-->>GW: JWT access + refresh tokens
+    GW-->>U: 200 OK + tokens
 ```
-1.  eureka-server, rabbitmq              (infrastructure, parallel)
-2.  config-server                        (after eureka)
-3.  auth-mysql, user-mysql, truck-mysql, (6 databases, parallel)
-    menu-mysql, order-mysql, payment-mysql
-4.  auth-service, user-service, truck-service, (tier-1 services, parallel)
-    payment-service, notification-service
-5.  menu-service, order-service,          (tier-2 with Feign deps)
-    analytics-service
-6.  api-gateway                           (last - depends on all)
+
+### 🛒 Place an Order
+
+```mermaid
+sequenceDiagram
+    participant C as Customer
+    participant GW as API Gateway
+    participant O as Order Service
+    participant P as Payment Service
+    participant RMQ as RabbitMQ
+    participant N as Notification Service
+    participant B as Brevo
+
+    C->>GW: POST /api/orders
+    GW->>O: Create order
+    O-->>RMQ: publish order.placed
+    C->>GW: POST /api/payments/razorpay/order
+    GW->>P: Create payment
+    P-->>RMQ: publish order.paid
+    RMQ-->>N: order.placed / order.paid
+    RMQ-->>O: order.paid (advance status)
+    N->>B: Send confirmation + receipt email
+    B-->>C: Email delivered
 ```
 
 ---
@@ -184,7 +303,7 @@ Containers start in strict dependency order, managed by Docker Compose `depends_
 | 8 | **Notification Service** | `8087` | — | None (events only) | Mixed | — |
 | 9 | **Analytics Service** | `8088` | `order-mysql` (read-only) | JdbcTemplate | ✅ All | VENDOR only |
 
-### Infrastructure
+### 🏭 Infrastructure
 
 | Component | Port | Description |
 |-----------|------|-------------|
@@ -197,33 +316,31 @@ Containers start in strict dependency order, managed by Docker Compose `depends_
 
 ## 🛠 Tech Stack
 
-### Backend
-- **Java 25** + **Spring Boot 3.5.5** + **Spring Cloud 2025.0.0**
-- **Spring Cloud Netflix Eureka** — service discovery
-- **Spring Cloud Config** — centralized config (native profile, serves from `config-repo/`)
-- **Spring Cloud Gateway** — API gateway (load-balanced routing via `lb://`)
-- **Spring Data JPA** + **MySQL 8** — persistence (one DB per service)
-- **Spring Security** + **JWT** (HMAC-SHA256) — authentication & role-based
-  authorization (`CUSTOMER`, `VENDOR`, `ADMIN`)
-- **Spring Cloud OpenFeign** — inter-service HTTP calls with
-  **Resilience4j** circuit breakers and fallback factories
-- **Spring Cloud Stream / RabbitMQ** — async event-driven communication
-- **Spring Boot Starter Mail** — SMTP email sending via Brevo
-- **SpringDoc OpenAPI** — Swagger UI at `/swagger-ui.html` per service
-- **Lombok** — boilerplate reduction
+### ⚙️ Backend
+- Java 25 + Spring Boot 3.5.5 + Spring Cloud 2025.0.0
+- Spring Cloud Netflix Eureka — service discovery
+- Spring Cloud Config — centralized config (native profile, served from `config-repo/`)
+- Spring Cloud Gateway — API gateway (load-balanced routing via `lb://`)
+- Spring Data JPA + MySQL 8 — one database per service
+- Spring Security + JWT (HMAC-SHA256) — authentication & role-based authorization (`CUSTOMER`, `VENDOR`, `ADMIN`)
+- Spring Cloud OpenFeign — inter-service HTTP calls with Resilience4j circuit breakers and fallback factories
+- Spring Cloud Stream / RabbitMQ — async event-driven communication
+- Spring Boot Starter Mail — SMTP email sending via Brevo
+- SpringDoc OpenAPI — Swagger UI at `/swagger-ui.html` per service
+- Lombok — boilerplate reduction
 
-### Frontend
-- **React 19** (Vite) with **Tailwind CSS 4**
-- **Recharts** — sales analytics charts
-- **Axios** — HTTP client with JWT interceptors
-- **React Router** — client-side routing with protected routes
-- **Vitest** — unit tests (jsdom)
+### 🎨 Frontend
+- React 19 (Vite) with Tailwind CSS 4
+- Recharts — sales analytics charts
+- Axios — HTTP client with JWT interceptors
+- React Router — client-side routing with protected routes
+- Vitest — unit tests (jsdom)
 
-### DevOps
-- **Docker Compose** — 18-container local deployment
-- **Multi-stage Dockerfiles** (Maven build → JRE runtime)
-- **GitHub Actions CI** — matrix backend tests + frontend checks
-- **Healthchecks** on all databases and RabbitMQ
+### 🐳 DevOps
+- Docker Compose — 18-container local deployment
+- Multi-stage Dockerfiles (Maven build → JRE runtime)
+- GitHub Actions CI — matrix backend tests + frontend checks
+- Healthchecks on all databases and RabbitMQ
 
 ---
 
@@ -254,9 +371,9 @@ truckbites/
 │   └── truckbites-frontend/    # React 19 + Vite SPA (:5173)
 ├── testing/
 │   ├── e2e/                    # api-test.sh (full gateway E2E flow)
-│   ├── postman/                # TruckBites.postman_collection.json
+│   └── postman/                # TruckBites.postman_collection.json
 ├── .env                        # Local secrets (gitignored — required)
-├── docker-compose.yml          # 17-container local stack
+├── docker-compose.yml          # 18-container local stack
 ├── LICENSE
 └── README.md
 ```
@@ -274,53 +391,50 @@ truckbites/
 
 ## 🚀 Quick Start (Docker Compose)
 
-### 1. Clone and configure
+### 1️⃣ Clone and configure
 
 ```bash
 git clone https://github.com/your-org/truckbites.git
 cd truckbites
-
-# REQUIRED: create .env with your secrets (JWT_SECRET has no default).
-# Generate your own JWT secret with:  openssl rand -hex 32
-#   MYSQL_ROOT_PASSWORD=<root db password>
-#   JWT_SECRET=<generated secret>
-#   RAZORPAY_KEY_ID=<razorpay key id>
-#   RAZORPAY_KEY_SECRET=<razorpay key secret>
-#   BREVO_SMTP_LOGIN=<optional>  BREVO_SMTP_KEY=<optional>
-#   FRONTEND_URL=http://localhost:5173  MAIL_FROM=TruckBites <you@example.com>
 ```
 
-> **Note:** `.env` is **required** — `JWT_SECRET`, `MYSQL_ROOT_PASSWORD` and the
-> Razorpay keys have **no hardcoded defaults** and the stack refuses to start
-> without them. `BREVO_SMTP_LOGIN` / `BREVO_SMTP_KEY` are only needed if you
-> want the notification service to send emails; without them it still starts
-> but skips email sending.
->
-> Running a service standalone with `mvn spring-boot:run`? Export the same
-> variables from `.env` first — services no longer ship hardcoded defaults.
+Create a `.env` file in the repo root with the following:
 
-> **⚠️ Important:** if you previously exported `JWT_SECRET` in your shell, clear
-> it first — a stale export overrides `.env`:
->
-> ```bash
-> unset JWT_SECRET   # or export JWT_SECRET=<your new value>
-> ```
+```env
+MYSQL_ROOT_PASSWORD=<root db password>
+JWT_SECRET=<generated secret>          # openssl rand -hex 32
+RAZORPAY_KEY_ID=<razorpay key id>
+RAZORPAY_KEY_SECRET=<razorpay key secret>
 
-### 2. Start the stack
+# Optional — omit to skip email sending
+BREVO_SMTP_LOGIN=<optional>
+BREVO_SMTP_KEY=<optional>
+FRONTEND_URL=http://localhost:5173
+MAIL_FROM=TruckBites <you@example.com>
+```
+
+> ⚠️ **`.env` is required.** `JWT_SECRET`, `MYSQL_ROOT_PASSWORD`, and the Razorpay keys have no hardcoded defaults — the stack refuses to start without them. `BREVO_SMTP_LOGIN` / `BREVO_SMTP_KEY` are only needed if you want the notification service to actually send emails; without them it still starts, it just skips sending.
+>
+> 🏃 Running a service standalone with `mvn spring-boot:run`? Export the same variables from `.env` first — services no longer ship hardcoded defaults.
+>
+> 🔁 If you previously exported `JWT_SECRET` in your shell, `unset JWT_SECRET` first — a stale shell export silently overrides `.env`.
+
+### 2️⃣ Start the stack
 
 ```bash
 docker compose up -d --build
 ```
 
-All 17 containers start in dependency order (see [Startup Order](#startup-order)).
-Wait for the `api-gateway` healthcheck to pass, then:
+All 18 containers start in dependency order (see [Startup Order](#-startup-order)). Wait for the `api-gateway` healthcheck to pass, then it's go time 🎉
 
-- Frontend: <http://localhost:5173>
-- API Gateway: <http://localhost:8080/api/...>
-- Eureka: <http://localhost:8761>
-- RabbitMQ management: <http://localhost:15672> (`guest` / `guest`)
+| Service | URL |
+|---------|-----|
+| Frontend | <http://localhost:5173> |
+| API Gateway | <http://localhost:8080/api/...> |
+| Eureka | <http://localhost:8761> |
+| RabbitMQ management | <http://localhost:15672> (`guest` / `guest`) |
 
-### 3. Seed demo data (optional)
+### 3️⃣ Seed demo data (optional)
 
 ```bash
 bash infrastructure/scripts/e2e-test.sh          # quick smoke test against the gateway
@@ -331,7 +445,7 @@ bash infrastructure/scripts/seed-vendors.cjs     # seed vendor accounts + trucks
 
 ## 🔧 Development Setup
 
-### Backend (without Docker)
+### ⚙️ Backend (without Docker)
 
 ```bash
 # 1. Install the shared module into your local Maven repo (required once)
@@ -340,16 +454,13 @@ mvn -f shared/truckbites-common/pom.xml install -DskipTests
 # 2. Export the env vars used by the services (source your .env)
 set -a; source .env; set +a
 
-# 3. Run a service (config-server + eureka-server first for full discovery)
+# 3. Run a service (start config-server + eureka-server first for full discovery)
 mvn -f services/auth-service/pom.xml spring-boot:run
 ```
 
-> Config Server serves from `config-repo/` — when run locally it resolves
-> `file:../../config-repo` automatically. For databases, either use the
-> Docker MySQL containers or run services with the `local` profile
-> (`application-local.yml`).
+> Config Server serves from `config-repo/` — run locally, it resolves `file:../../config-repo` automatically. For databases, either use the Docker MySQL containers or run services with the `local` profile (`application-local.yml`).
 
-### Frontend
+### 🎨 Frontend
 
 ```bash
 cd frontend/truckbites-frontend
@@ -357,17 +468,15 @@ npm install
 npm run dev        # http://localhost:5173 (VITE_API_BASE_URL from .env)
 ```
 
-The frontend reads `frontend/truckbites-frontend/.env` for
-`VITE_API_BASE_URL` and `VITE_RAZORPAY_KEY_ID` (copy from `.env.example` there).
+The frontend reads `frontend/truckbites-frontend/.env` for `VITE_API_BASE_URL` and `VITE_RAZORPAY_KEY_ID` (copy from `.env.example` in that directory).
 
 ---
 
 ## 🧪 Testing
 
-### Backend unit tests
+### ✅ Backend unit tests
 
-Every service has `src/test/java` tests using an in-memory **H2** database —
-no Docker or MySQL needed:
+Every service has `src/test/java` tests using an in-memory H2 database — no Docker or MySQL needed:
 
 | Service | Tests |
 |---------|-------|
@@ -379,26 +488,26 @@ no Docker or MySQL needed:
 | payment-service | 3 — PaymentController, PaymentService, JwtUtil |
 | analytics-service | 3 — AnalyticsController, AnalyticsService, JwtUtil |
 | notification-service | 1 — NotificationService |
-| api-gateway / config-server / eureka-server | — (infrastructure, no business logic) |
+| api-gateway / config-server / eureka-server | — infrastructure, no business logic |
 
-**Total: 195 unit tests across 8 services** (H2 in-memory, no Docker needed).
-Test resources disable the Config Server (`src/test/resources/bootstrap.yml`)
-so runs are deterministic regardless of whether the stack is up.
+🧪 **Total: 195 unit tests across 8 services** (H2 in-memory, no Docker needed). Test resources disable the Config Server (`src/test/resources/bootstrap.yml`) so runs are deterministic regardless of whether the stack is up.
 
 ```bash
 mvn -f services/auth-service/pom.xml test        # run one service's tests
+
+# run all services' tests
 mvn -f shared/truckbites-common/pom.xml install -DskipTests && \
-for s in services/*/; do mvn -B -q -f "$s/pom.xml" test; done   # all services
+for s in services/*/; do mvn -B -q -f "$s/pom.xml" test; done
 ```
 
-### Frontend tests
+### ✅ Frontend tests
 
 ```bash
 cd frontend/truckbites-frontend
 npm test          # vitest run (jsdom)
 ```
 
-### E2E API tests
+### 🔗 E2E API tests
 
 ```bash
 # against the running stack (requires the gateway on :8080)
@@ -406,7 +515,7 @@ bash testing/e2e/api-test.sh
 bash infrastructure/scripts/e2e-test.sh
 ```
 
-### Postman
+### 📮 Postman
 
 Import `testing/postman/TruckBites.postman_collection.json` into Postman.
 
@@ -414,8 +523,7 @@ Import `testing/postman/TruckBites.postman_collection.json` into Postman.
 
 ## 🔌 API Endpoints
 
-All requests go through the **API Gateway** (`http://localhost:8080`).
-JWT-authenticated endpoints require `Authorization: Bearer <token>`.
+All requests go through the **API Gateway** (`http://localhost:8080`). JWT-authenticated endpoints require `Authorization: Bearer <token>`.
 
 | Method | Path | Service | Access |
 |--------|------|---------|--------|
@@ -442,16 +550,13 @@ JWT-authenticated endpoints require `Authorization: Bearer <token>`.
 | GET | `/api/analytics/truck/{truckId}/top-items` | analytics | VENDOR |
 | GET | `/api/analytics/truck/{truckId}/order-summary` | analytics | VENDOR |
 
-> ⚠️ Note: `POST /api/upload` (truck image upload) is served by truck-service
-> but is **not** routed by the gateway yet — call it directly on `:8083`
-> until a gateway route is added.
+> ⚠️ `POST /api/upload` (truck image upload) is served by truck-service but is **not yet routed by the gateway** — call it directly on `:8083` until a gateway route is added.
 
 ---
 
 ## 📖 Swagger / OpenAPI Docs
 
-Each business service exposes interactive **Swagger UI** and a JSON spec
-(`/v3/api-docs`) via SpringDoc:
+Each business service exposes interactive Swagger UI and a JSON spec (`/v3/api-docs`) via SpringDoc:
 
 | Service | Port | Swagger UI |
 |---------|------|-----------|
@@ -464,18 +569,13 @@ Each business service exposes interactive **Swagger UI** and a JSON spec
 | notification-service | 8087 | <http://localhost:8087/swagger-ui.html> |
 | analytics-service | 8088 | <http://localhost:8088/swagger-ui.html> |
 
-Status: **8/11 services** ship SpringDoc (`springdoc-openapi-starter-webmvc-ui`)
-with an `OpenApiConfig` (info, security scheme, server URL). `api-gateway`
-(Spring Cloud Gateway / WebFlux), `config-server` and `eureka-server` have no
-Swagger UI — they expose no business API. Controllers are annotated with
-`@Operation` / `@ApiResponse` / `@SecurityRequirement`.
+**8/11 services** ship SpringDoc (`springdoc-openapi-starter-webmvc-ui`) with an `OpenApiConfig` (info, security scheme, server URL). `api-gateway` (Spring Cloud Gateway / WebFlux), `config-server`, and `eureka-server` have no Swagger UI — they expose no business API. Controllers are annotated with `@Operation` / `@ApiResponse` / `@SecurityRequirement`.
 
 ---
 
 ## 🔐 Environment Variables
 
-All secrets are centralized in the **root `.env`** (gitignored) and consumed
-via `docker compose` / Spring `${...}` placeholders:
+All secrets are centralized in the root `.env` (gitignored) and consumed via `docker compose` / Spring `${...}` placeholders:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -494,8 +594,7 @@ via `docker compose` / Spring `${...}` placeholders:
 
 ## 🔄 RabbitMQ Event Flow
 
-Async events are published to the `truckbites.exchange` topic exchange and
-consumed by the notification service (and internally by order-service):
+Async events are published to the `truckbites.exchange` topic exchange and consumed by the notification service (and internally by order-service):
 
 ```mermaid
 graph LR
@@ -515,16 +614,28 @@ graph LR
 
 ---
 
+## 🩺 Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+|---------|-------------|-----|
+| Stack refuses to start / crashes on boot | Missing `.env` or a required variable unset | Confirm `MYSQL_ROOT_PASSWORD`, `JWT_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` are all set in the root `.env` |
+| `401 Unauthorized` right after changing `JWT_SECRET` | A stale `JWT_SECRET` exported in your shell is overriding `.env` | Run `unset JWT_SECRET` and restart the service/stack |
+| `mvn spring-boot:run` fails with missing property errors | Env vars from `.env` weren't exported into the shell | Run `set -a; source .env; set +a` before starting the service |
+| `POST /api/upload` returns 404 through the gateway | Upload route isn't registered on the gateway yet | Call truck-service directly on `:8083` |
+| A service can't resolve config on local `mvn` run | Config Server not reachable / wrong relative path | Start `config-server` first, or run with the `local` profile (`application-local.yml`) |
+| Notification emails aren't sending | `BREVO_SMTP_LOGIN` / `BREVO_SMTP_KEY` not set | Expected — these are optional; the service starts fine and just skips sending |
+| `mvn -f services/*/pom.xml` fails with missing shared classes | `truckbites-common` not installed locally | Run `mvn -f shared/truckbites-common/pom.xml install -DskipTests` first |
+
+---
+
 ## 🤖 CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`dev`
-and on pull requests:
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`/`dev` and on pull requests:
 
 1. **Validate docker-compose** — `docker compose config -q`
 2. **Build shared module** — `shared/truckbites-common`
-3. **Backend matrix** — every service compiled and its unit tests run on JDK 25
-   (Surefire reports uploaded as artifacts)
-4. **Frontend** — `npm ci` → oxlint → Vitest unit tests → production build
+3. **Backend matrix** — every service compiled and its unit tests run on JDK 25 (Surefire reports uploaded as artifacts)
+4. ### 🎨 Frontend — `npm ci` → oxlint → Vitest unit tests → production build
 
 ---
 
