@@ -56,10 +56,13 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    /* Prevent accidental horizontal page scroll on small screens */
+    overflow-x: clip;
   }
 
   body {
     @apply bg-cream text-body font-body antialiased transition-colors duration-300;
+    -webkit-tap-highlight-color: transparent;
   }
 
   h1,

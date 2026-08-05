@@ -26,8 +26,13 @@ public class OrderEventListener {
             return;
         }
 
-        String summary = buildOrderSummary(event);
-        emailService.sendOrderConfirmation(event.getCustomerEmail(), event.getOrderId(), summary);
+        emailService.sendOrderConfirmation(
+                event.getCustomerEmail(),
+                event.getOrderId(),
+                event.getTruckId(),
+                event.getCreatedAt(),
+                event.getTotalAmount(),
+                event.getItems());
     }
 
     /**
@@ -47,22 +52,8 @@ public class OrderEventListener {
                 event.getCustomerEmail(),
                 event.getOrderId(),
                 event.getTransactionRef(),
-                event.getAmount().toPlainString());
-    }
-
-    private String buildOrderSummary(OrderPlacedEvent event) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Order #").append(event.getOrderId()).append("\n");
-        sb.append("Total: $").append(event.getTotalAmount()).append("\n\n");
-        sb.append("Items:\n");
-        if (event.getItems() != null) {
-            for (OrderPlacedEvent.OrderItemEvent item : event.getItems()) {
-                sb.append("  • ").append(item.getItemName())
-                        .append(" × ").append(item.getQuantity())
-                        .append("  $").append(item.getPrice().multiply(java.math.BigDecimal.valueOf(item.getQuantity())))
-                        .append("\n");
-            }
-        }
-        return sb.toString();
+                event.getAmount(),
+                event.getMethod(),
+                event.getCreatedAt());
     }
 }

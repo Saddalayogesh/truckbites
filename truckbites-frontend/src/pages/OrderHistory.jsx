@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast';
 import { useCart } from '../context/CartContext';
 import { TriangleAlert, Package, RotateCcw, Star, Check, Truck } from 'lucide-react';
 import logger from '../utils/logger';
+import { formatINR } from '../utils/pricing';
 
 var COMPONENT = 'OrderHistory';
 var STATUS_LABELS = {
@@ -22,10 +23,6 @@ var STATUS_COLORS = {
   READY: 'bg-success/15 text-success',
   COMPLETED: 'bg-line/60 text-body',
   CANCELLED: 'bg-error/15 text-error',
-};
-
-var formatPrice = function(price) {
-  return '$' + Number(price).toFixed(2);
 };
 
 var formatDate = function(dateStr) {
@@ -198,7 +195,7 @@ export default function OrderHistory() {
               var isReviewed = order.reviewed;
               return (
                 <div key={order.id} className="card p-5 card-hover">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-3">
                           <h3 className="font-heading font-semibold text-ink">Order #{order.id}</h3>
@@ -216,7 +213,7 @@ export default function OrderHistory() {
                         </Link>
                       </div>
                       <div className="text-right">
-                        <p className="font-heading font-bold text-primary text-lg">{formatPrice(order.totalAmount)}</p>
+                        <p className="font-heading font-bold text-primary text-lg">{formatINR(order.totalAmount)}</p>
                         <p className="text-xs text-body/70 mt-0.5">{order.items ? order.items.length : 0} item{order.items && order.items.length !== 1 ? 's' : ''}</p>
                       </div>
                     </div>

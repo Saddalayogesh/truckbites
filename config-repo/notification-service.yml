@@ -3,10 +3,11 @@ server:
 
 spring:
   mail:
-    host: smtp.mailtrap.io
+    host: smtp-relay.brevo.com
     port: 587
-    username: ${MAILTRAP_USERNAME}
-    password: ${MAILTRAP_PASSWORD}
+    username: ${BREVO_SMTP_LOGIN}
+    password: ${BREVO_SMTP_KEY}
+    from: "TruckBites <yogeshsaddala29@gmail.com>"
     properties:
       mail:
         smtp:
@@ -22,6 +23,9 @@ spring:
     password: guest
 
 app:
+  # Base URL used for email CTA links (e.g. "Track your order"). Override
+  # with FRONTEND_URL when deploying (e.g. https://truckbites.app).
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
   rabbitmq:
     exchange: truckbites.exchange
     routing-key:
@@ -33,7 +37,7 @@ app:
 jwt:
   secret: ${JWT_SECRET}
 
-# Mail health check requires SMTP credentials; without Mailtrap creds the
+# Mail health check requires SMTP credentials; without Brevo creds the
 # actuator /health would report DOWN and block docker compose dependency
 # chains. Disable it so the service stays healthy even without mail config.
 management:

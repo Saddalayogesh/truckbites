@@ -13,13 +13,6 @@ import { NON_MEMBER, formatINR, estimateCartPricing } from '../utils/pricing';
 
 const COMPONENT = 'Checkout';
 
-const formatPrice = (price) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(price);
-};
-
 export default function Checkout() {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -238,7 +231,7 @@ export default function Checkout() {
                     <span className="text-ink">{cartItem.name}</span>
                   </div>
                   <span className="text-ink font-medium">
-                    {formatPrice(cartItem.price * cartItem.quantity)}
+                    {formatINR(cartItem.price * cartItem.quantity)}
                   </span>
                 </div>
               ))}
@@ -254,7 +247,7 @@ export default function Checkout() {
             <div className="space-y-3 mb-4">
               <div className="flex justify-between text-body">
                 <span>Items ({itemCount})</span>
-                <span>{formatPrice(pricing.subtotal)}</span>
+                <span>{formatINR(pricing.subtotal)}</span>
               </div>
               {pricing.discount > 0 && (
                 <div className="flex justify-between text-body">
@@ -279,7 +272,7 @@ export default function Checkout() {
             <div className="border-t border-line pt-4 mb-2">
               <div className="flex justify-between text-lg font-heading font-bold text-ink">
                 <span>Total</span>
-                <span className="text-primary">{formatPrice(pricing.total)}</span>
+                <span className="text-primary">{formatINR(pricing.total)}</span>
               </div>
             </div>
             <p className="text-[11px] text-body/60 mb-4">
@@ -306,7 +299,7 @@ export default function Checkout() {
                   Processing...
                 </>
               ) : (
-                'Place Order - ' + formatPrice(pricing.total)
+                'Place Order - ' + formatINR(pricing.total)
               )}
             </button>
 

@@ -265,7 +265,7 @@ export default function Home() {
             {/* Glass search bar */}
             <form
               onSubmit={handleSearch}
-              className="glass mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 rounded-full shadow-glass max-w-xl"
+              className="glass mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 rounded-[28px] sm:rounded-full shadow-glass max-w-xl"
             >
               <div className="flex-1 relative">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-body/60" strokeWidth={2} />

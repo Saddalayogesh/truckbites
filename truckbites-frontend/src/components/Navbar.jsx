@@ -33,7 +33,7 @@ function BellButton({ onClick }) {
     <button
       onClick={onClick}
       aria-label="Notifications"
-      className="relative inline-flex items-center justify-center h-11 w-11 rounded-full border border-line bg-surface text-body hover:text-primary hover:border-primary/40 transition-all duration-200"
+      className="relative inline-flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-full border border-line bg-surface text-body hover:text-primary hover:border-primary/40 transition-all duration-200"
     >
       <Bell className="h-5 w-5" strokeWidth={1.8} />
       <span className="absolute top-2 right-2 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white" />
@@ -113,7 +113,7 @@ export default function Navbar() {
           {/* Brand */}
           <Link to={brandHome} className="flex items-center gap-2.5 group">
             <TruckMark />
-            <span className="text-xl font-heading font-bold text-ink tracking-tight group-hover:text-primary transition-colors">
+            <span className="hidden min-[400px]:inline text-lg sm:text-xl font-heading font-bold text-ink tracking-tight group-hover:text-primary transition-colors">
               Truck<span className="text-primary">Bites</span>
             </span>
           </Link>
@@ -178,7 +178,7 @@ export default function Navbar() {
                   onClick={toggleTheme}
                   aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                   title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                  className="inline-flex items-center justify-center h-11 w-11 rounded-full border border-line bg-surface text-body hover:text-primary hover:border-primary/40 transition-all duration-200"
+                  className="inline-flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-full border border-line bg-surface text-body hover:text-primary hover:border-primary/40 transition-all duration-200"
                 >
                   {theme === 'dark' ? <Sun className="h-5 w-5" strokeWidth={1.8} /> : <Moon className="h-5 w-5" strokeWidth={1.8} />}
                 </button>
@@ -186,7 +186,7 @@ export default function Navbar() {
                 {role === 'CUSTOMER' && (
                   <Link
                     to="/cart"
-                    className="relative inline-flex items-center justify-center h-11 w-11 rounded-full border border-line bg-surface text-body hover:text-primary hover:border-primary/40 transition-all duration-200"
+                    className="relative inline-flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-full border border-line bg-surface text-body hover:text-primary hover:border-primary/40 transition-all duration-200"
                     aria-label={`Cart, ${itemCount} items`}
                   >
                     <ShoppingCart className="h-5 w-5" strokeWidth={1.8} />
@@ -199,7 +199,7 @@ export default function Navbar() {
                 )}
                 <Link
                   to="/profile"
-                  className="hidden sm:inline-flex items-center justify-center h-11 w-11 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white font-heading font-bold text-sm shadow-soft ring-2 ring-white hover:shadow-glow-brand transition-shadow"
+                  className="hidden sm:inline-flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-gradient-to-br from-primary to-primary-dark text-white font-heading font-bold text-sm shadow-soft ring-2 ring-white hover:shadow-glow-brand transition-shadow"
                   aria-label="Profile"
                 >
                   {initials}
@@ -223,7 +223,7 @@ export default function Navbar() {
             <button
               onClick={() => setMenuOpen((o) => !o)}
               aria-label="Toggle menu"
-              className="lg:hidden inline-flex items-center justify-center h-11 w-11 rounded-full border border-line bg-surface text-ink hover:text-primary transition-colors"
+              className="lg:hidden inline-flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-full border border-line bg-surface text-ink hover:text-primary transition-colors"
             >
               {menuOpen ? (
                 <X className="h-5 w-5" strokeWidth={2} />

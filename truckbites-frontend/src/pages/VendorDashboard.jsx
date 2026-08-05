@@ -757,14 +757,14 @@ export default function VendorDashboard() {
           {activeTab === 'truck' && (
             <div className="card p-0 overflow-hidden">
               {/* Truck header with edit/delete actions */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-line">
-                <h2 className="text-xl font-heading font-semibold text-ink flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-primary" /> {selectedTruck.name}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-line">
+                <h2 className="text-xl font-heading font-semibold text-ink flex items-center gap-2 flex-wrap min-w-0">
+                  <Truck className="w-5 h-5 text-primary shrink-0" /> <span className="truncate min-w-0">{selectedTruck.name}</span>
                   {selectedTruck.featuredUntil && new Date(selectedTruck.featuredUntil) > new Date() && (
                     <span className="badge bg-accent/20 text-accentDark text-[11px]">⭐ Featured</span>
                   )}
                 </h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => { setPromotingDays(7); setPromoteTruck(selectedTruck); setPromoteError(''); }}
                     className="btn btn-primary btn-sm"
@@ -915,13 +915,13 @@ export default function VendorDashboard() {
                           {item.description && <p className="text-sm text-body/70 mt-1">{item.description}</p>}
                         </div>
                         <div className="text-right">
-                          <p className="font-heading font-bold text-primary">${item.price}</p>
+                          <p className="font-heading font-bold text-primary">{formatINR(item.price)}</p>
                           <span className={`text-xs ${item.isAvailable ? 'text-success' : 'text-error'}`}>
                             {item.isAvailable ? 'Available' : 'Unavailable'}
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 mt-3 pt-3 border-t border-line">
+                      <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-line">
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-body">Qty:</label>
                           <input type="number" min="0" value={item.quantityAvailable ?? 0}
@@ -1133,16 +1133,16 @@ export default function VendorDashboard() {
                       <div key={order.id} className={`card p-4 hover:shadow-card-hover transition-shadow ${
                         selectedOrderIds.includes(order.id) ? 'border-primary ring-1 ring-primary/30' : ''
                       }`}>
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-start gap-3">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                          <div className="flex items-start gap-3 min-w-0">
                             <input
                               type="checkbox"
                               checked={selectedOrderIds.includes(order.id)}
                               onChange={() => toggleOrderSelection(order.id)}
-                              className="mt-1 rounded border-line text-primary focus:ring-primary"
+                              className="mt-1 shrink-0 rounded border-line text-primary focus:ring-primary"
                             />
-                            <div>
-                              <div className="flex items-center gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="font-heading font-semibold text-ink">Order #{order.id}</h4>
                                 <span className={`badge ${
                                   order.status === 'PLACED' ? 'bg-primary/10 text-primary' :
@@ -1153,7 +1153,7 @@ export default function VendorDashboard() {
                                   {order.status}
                                 </span>
                               </div>
-                              <p className="text-sm text-body mt-1">Total: ${order.totalAmount}</p>
+                              <p className="text-sm text-body mt-1">Total: {formatINR(order.totalAmount)}</p>
                               {order.items?.length > 0 && (
                                 <p className="text-xs text-body/70 mt-1">
                                   {order.items.map((i) => `${i.itemName} × ${i.quantity}`).join(', ')}
@@ -1163,7 +1163,7 @@ export default function VendorDashboard() {
                           </div>
                           {canAdvance && (
                             <button onClick={() => handleAdvanceStatus(order.id, order.status)}
-                              className="btn btn-primary btn-sm whitespace-nowrap">
+                              className="btn btn-primary btn-sm whitespace-nowrap shrink-0">
                               Advance to {STATUS_FLOW[statusIdx + 1]}
                             </button>
                           )}
@@ -1228,7 +1228,7 @@ export default function VendorDashboard() {
                       );
                     })}
                   </div>
-                  <div className="px-6 py-4 bg-cream border-t border-line flex items-center justify-between">
+                  <div className="px-6 py-4 bg-cream border-t border-line flex flex-wrap items-center justify-between gap-2">
                     {hoursMsg && (
                       <span className={`text-sm ${hoursMsg.includes('Failed') ? 'text-error' : 'text-success'}`}>
                         {hoursMsg}
