@@ -1,0 +1,22 @@
+server:
+  port: 8087
+
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+app:
+  rabbitmq:
+    exchange: truckbites.exchange
+    routing-key:
+      order-placed: order.placed
+      order-paid: order.paid
+    queue:
+      notification: notification.queue
+
+eureka:
+  client:
+    enabled: false

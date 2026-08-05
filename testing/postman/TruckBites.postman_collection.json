@@ -1,0 +1,190 @@
+{
+  "info": {
+    "name": "TruckBites API",
+    "description": "Complete API collection for TruckBites microservices platform.\n\n## Getting Started\n1. Send Auth -> Register or Auth -> Login to get a JWT token\n2. Copy the token to the collection variable\n3. All authenticated endpoints include Bearer token automatically",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "token", "value": "", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api","auth","register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api","auth","login"] }
+          }
+        },
+        {
+          "name": "Get All Users (ADMIN)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/auth/users", "host": ["{{baseUrl}}"], "path": ["api","auth","users"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Profiles",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/users/profile?userId=1", "host": ["{{baseUrl}}"], "path": ["api","users","profile"], "query": [{ "key": "userId", "value": "1" }] }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "url": { "raw": "{{baseUrl}}/api/users/profile?userId=1&phone=%2B1-555-123-4567&address=123%20Main%20St&profileImageUrl=https%3A%2F%2Fexample.com%2Fprofile.jpg", "host": ["{{baseUrl}}"], "path": ["api","users","profile"], "query": [{ "key": "userId", "value": "1" }, { "key": "phone", "value": "+1-555-123-4567" }, { "key": "address", "value": "123 Main St" }, { "key": "profileImageUrl", "value": "https://example.com/profile.jpg" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trucks",
+      "item": [
+        {
+          "name": "Search Trucks",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/trucks/search?cuisineType=Mexican&latitude=40.7128&longitude=-74.0060&radiusKm=10", "host": ["{{baseUrl}}"], "path": ["api","trucks","search"], "query": [{ "key": "cuisineType", "value": "Mexican" }, { "key": "latitude", "value": "40.7128" }, { "key": "longitude", "value": "-74.0060" }, { "key": "radiusKm", "value": "10" }] }
+          }
+        },
+        {
+          "name": "Get Truck by ID",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/trucks/1", "host": ["{{baseUrl}}"], "path": ["api","trucks","1"] }
+          }
+        },
+        {
+          "name": "Get My Trucks (VENDOR)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/trucks/my-trucks", "host": ["{{baseUrl}}"], "path": ["api","trucks","my-trucks"] }
+          }
+        },
+        {
+          "name": "Create Truck (VENDOR)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Taco Express\",\n  \"cuisineType\": \"Mexican\",\n  \"description\": \"Authentic Mexican street tacos\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060,\n  \"imageUrl\": \"https://example.com/taco.jpg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/trucks", "host": ["{{baseUrl}}"], "path": ["api","trucks"] }
+          }
+        },
+        {
+          "name": "Update Truck (VENDOR)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Taco Express Updated\",\n  \"cuisineType\": \"Mexican\",\n  \"description\": \"Updated description\",\n  \"latitude\": 40.7580,\n  \"longitude\": -73.9855,\n  \"imageUrl\": \"https://example.com/taco-v2.jpg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/trucks/1", "host": ["{{baseUrl}}"], "path": ["api","trucks","1"] }
+          }
+        },
+        {
+          "name": "Update Location (VENDOR)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"latitude\": 40.7580,\n  \"longitude\": -73.9855\n}" },
+            "url": { "raw": "{{baseUrl}}/api/trucks/1/location", "host": ["{{baseUrl}}"], "path": ["api","trucks","1","location"] }
+          }
+        },
+        {
+          "name": "Toggle Status (VENDOR)",
+          "request": {
+            "method": "PATCH",
+            "url": { "raw": "{{baseUrl}}/api/trucks/1/status", "host": ["{{baseUrl}}"], "path": ["api","trucks","1","status"] }
+          }
+        },
+        {
+          "name": "Delete Truck (VENDOR)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/trucks/1", "host": ["{{baseUrl}}"], "path": ["api","trucks","1"] }
+          }
+        },
+        {
+          "name": "Get All Trucks (ADMIN)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/trucks/all", "host": ["{{baseUrl}}"], "path": ["api","trucks","all"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Favorites",
+      "item": [
+        {
+          "name": "Add Favorite",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{baseUrl}}/api/favorites/1", "host": ["{{baseUrl}}"], "path": ["api","favorites","1"] }
+          }
+        },
+        {
+          "name": "Remove Favorite",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/favorites/1", "host": ["{{baseUrl}}"], "path": ["api","favorites","1"] }
+          }
+        },
+        {
+          "name": "Get My Favorites",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/favorites", "host": ["{{baseUrl}}"], "path": ["api","favorites"] }
+          }
+        },
+        {
+          "name": "Check Favorite",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/favorites/1/check", "host": ["{{baseUrl}}"], "path": ["api","favorites","1","check"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Add Review (CUSTOMER)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"orderId\": 1,\n  \"rating\": 4,\n  \"comment\": \"Great tacos! Highly recommend.\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/reviews/truck/1", "host": ["{{baseUrl}}"], "path": ["api","reviews","truck","1"] }
+          }
+        },
+        {
+          "name": "Get Reviews by Truck",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/reviews/truck/1", "host": ["{{baseUrl}}"], "path": ["api","reviews","truck","1"] }
+          }
+        }

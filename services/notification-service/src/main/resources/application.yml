@@ -1,0 +1,30 @@
+server:
+  port: 8087
+
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+app:
+  rabbitmq:
+    exchange: truckbites.exchange
+    routing-key:
+      order-placed: order.placed
+      order-paid: order.paid
+    queue:
+      notification: notification.queue
+
+# Brevo SMTP config is provided by Config Server in notification-service.yml
+
+jwt:
+  secret: ${JWT_SECRET}
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

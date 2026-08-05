@@ -1,0 +1,20 @@
+server:
+  port: 8084
+
+spring:
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
+# Feign circuit breaker tuning: the default 1s TimeLimiter is too tight for
+# cold-start JVM calls, causing transient 503s right after startup. Give
+# calls more headroom while keeping circuit-breaking enabled.
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
+
+jwt:
+  secret: ${JWT_SECRET}

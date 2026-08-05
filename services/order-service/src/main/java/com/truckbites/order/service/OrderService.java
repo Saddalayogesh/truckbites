@@ -1,0 +1,410 @@
+package com.truckbites.order.service;
+
+import com.truckbites.common.exception.ResourceNotFoundException;
+import com.truckbites.common.exception.UnauthorizedException;
+import com.truckbites.order.client.MenuItemDto;
+import com.truckbites.order.client.MenuServiceClient;
+import com.truckbites.order.client.TruckDto;
+import com.truckbites.order.client.TruckServiceClient;
+import com.truckbites.order.client.UserMembershipDto;
+import com.truckbites.order.client.UserServiceClient;
+import com.truckbites.order.client.UserVendorPlanDto;
+import com.truckbites.order.dto.CreateOrderRequest;
+import com.truckbites.order.dto.OrderResponse;
+import com.truckbites.order.dto.OrderStatusUpdateRequest;
+import com.truckbites.order.event.OrderEventPublisher;
+import com.truckbites.order.event.OrderPlacedEvent;
+import com.truckbites.order.model.Order;
+import com.truckbites.order.model.OrderItem;
+import com.truckbites.order.model.OrderStatus;
+import com.truckbites.order.repository.OrderRepository;
+import feign.FeignException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final MenuServiceClient menuServiceClient;
+    private final TruckServiceClient truckServiceClient;
+    private final UserServiceClient userServiceClient;
+    private final OrderEventPublisher eventPublisher;
+
+    /**
+     * Validates that the truck exists and is owned by the given ownerId.
+     */
+    private TruckDto validateTruckOwnership(Long truckId, Long ownerId) {
+        TruckDto truck;
+        try {
+            truck = truckServiceClient.getTruckById(truckId);
+        } catch (FeignException.NotFound e) {
+            log.warn("Truck not found with id: {}", truckId);
+            throw new ResourceNotFoundException("Truck not found with id: " + truckId);
+        } catch (FeignException e) {
+            log.error("Failed to call truck-service for truckId: {}", truckId, e);
+            throw e;
+        }
+
+        if (!truck.getOwnerId().equals(ownerId)) {
+            log.warn("User {} does not own truck {}", ownerId, truckId);
+            throw new UnauthorizedException("You do not own this truck");
+        }
+
+        log.debug("Truck {} validated for ownerId {}", truckId, ownerId);
+        return truck;
+    }
+
+    /**
+     * Validates a menu item exists, is available, and has sufficient quantity.
+     */
+    private MenuItemDto validateMenuItem(Long menuItemId, int requestedQuantity) {
+        MenuItemDto item;
+        try {
+            item = menuServiceClient.getMenuItemById(menuItemId);
+        } catch (FeignException.NotFound e) {
+            log.warn("Menu item not found with id: {}", menuItemId);
+            throw new ResourceNotFoundException("Menu item not found with id: " + menuItemId);
+        } catch (FeignException e) {
+            log.error("Failed to call menu-service for menuItemId: {}", menuItemId, e);
+            throw e;
+        }
+
+        if (Boolean.FALSE.equals(item.getIsAvailable())) {
+            log.warn("Menu item {} is not available", menuItemId);
+            throw new IllegalStateException("Menu item '" + item.getName() + "' is not available");
+        }
+
+        if (item.getQuantityAvailable() < requestedQuantity) {
+            log.warn("Insufficient quantity for menu item {}: requested={}, available={}",
+                    menuItemId, requestedQuantity, item.getQuantityAvailable());
+            throw new IllegalStateException(
+                    "Insufficient quantity for '" + item.getName() + "': requested " +
+                    requestedQuantity + ", available " + item.getQuantityAvailable());
+        }
+
+        return item;
+    }
+
+    /**
+     * Places an order: validates items via MenuServiceClient, snapshots name/price,
+     * calculates total, saves with PLACED status, and publishes order.placed event.
+     */
+    @Transactional
+    public OrderResponse placeOrder(Long customerId, CreateOrderRequest request) {
+        log.info("Placing order for customerId={}, email={}, truckId={}",
+                customerId, request.getCustomerEmail(), request.getTruckId());
+
+        // Validate each menu item and snapshot name/price
+        List<OrderItem> items = new ArrayList<>();
+        for (CreateOrderRequest.OrderItemRequest itemReq : request.getItems()) {
+            MenuItemDto menuItem = validateMenuItem(itemReq.getMenuItemId(), itemReq.getQuantity());
+
+            OrderItem orderItem = OrderItem.builder()
+                    .menuItemId(menuItem.getId())
+                    .itemName(menuItem.getName())
+                    .price(menuItem.getPrice())
+                    .quantity(itemReq.getQuantity())
+                    .build();
+            items.add(orderItem);
+        }
+
+        // Calculate food subtotal from item price snapshots
+        BigDecimal subtotal = items.stream()
+                .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Revenue model: membership discount + platform fee + GST (5% food, 18% fee)
+        UserMembershipDto membership = resolveMembership(customerId);
+        BigDecimal discount = subtotal
+                .multiply(BigDecimal.valueOf(membership.getDiscountPercent()))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal platformFee = membership.getPlatformFeePerOrder() != null
+                ? membership.getPlatformFeePerOrder()
+                : BigDecimal.ZERO;
+        BigDecimal gstAmount = PricingRules.gstOf(subtotal, PricingRules.GST_FOOD_RATE)
+                .add(PricingRules.gstOf(platformFee, PricingRules.GST_PLATFORM_FEE_RATE));
+        BigDecimal totalAmount = PricingRules.money(
+                subtotal.subtract(discount).add(platformFee).add(gstAmount));
+
+        // Platform commission based on the vendor's subscription plan
+        BigDecimal commissionAmount = resolveCommission(request.getTruckId(), subtotal);
+
+        Order order = Order.builder()
+                .customerId(customerId)
+                .customerEmail(request.getCustomerEmail())
+                .truckId(request.getTruckId())
+                .totalAmount(totalAmount)
+                .subtotalAmount(PricingRules.money(subtotal))
+                .discountAmount(discount)
+                .platformFee(platformFee)
+                .gstAmount(gstAmount)
+                .commissionAmount(commissionAmount)
+                .membershipTier(membership.getTier())
+                .priority(membership.isPriorityProcessing())
+                .notes(request.getNotes())
+                .status(OrderStatus.PLACED)
+                .items(items)
+                .build();
+
+        // Set bidirectional relationship
+        order.getItems().forEach(item -> item.setOrder(order));
+
+        Order saved = orderRepository.save(order);
+        log.info("Order placed with id: {} for customerId: {}, email: {}, total: {}",
+                saved.getId(), customerId, request.getCustomerEmail(), totalAmount);
+
+        // Publish order.placed event
+        publishOrderPlacedEvent(saved);
+
+        return toResponse(saved);
+    }
+
+    private void publishOrderPlacedEvent(Order order) {
+        List<OrderPlacedEvent.OrderItemEvent> itemEvents = order.getItems().stream()
+                .map(item -> OrderPlacedEvent.OrderItemEvent.builder()
+                        .menuItemId(item.getMenuItemId())
+                        .itemName(item.getItemName())
+                        .price(item.getPrice())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
+
+        OrderPlacedEvent event = OrderPlacedEvent.builder()
+                .orderId(order.getId())
+                .customerId(order.getCustomerId())
+                .customerEmail(order.getCustomerEmail())
+                .truckId(order.getTruckId())
+                .totalAmount(order.getTotalAmount())
+                .createdAt(order.getCreatedAt())
+                .items(itemEvents)
+                .build();
+
+        eventPublisher.publishOrderPlaced(event);
+    }
+
+    public OrderResponse getOrderById(Long id) {
+        log.debug("Fetching order by id: {}", id);
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Order not found with id: {}", id);
+                    return new ResourceNotFoundException("Order not found with id: " + id);
+                });
+        return toResponse(order);
+    }
+
+    public List<OrderResponse> getOrdersByCustomer(Long customerId) {
+        log.debug("Fetching orders for customerId: {}", customerId);
+        return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public List<OrderResponse> getAllOrders() {
+        log.debug("Fetching all orders for admin");
+        return orderRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public List<OrderResponse> getOrdersByTruck(Long truckId) {
+        log.debug("Fetching orders for truckId: {}", truckId);
+        return orderRepository.findByTruckIdOrderByCreatedAtDesc(truckId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /**
+     * Updates order status. Validates that the caller (vendor) owns the truck
+     * associated with the order before allowing status changes.
+     */
+    @Transactional
+    public OrderResponse updateOrderStatus(Long id, OrderStatusUpdateRequest request, Long vendorId) {
+        log.info("Updating order status: id={}, newStatus={}, vendorId={}",
+                id, request.getStatus(), vendorId);
+
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> {
+                    log.warn("Order not found with id: {}", id);
+                    return new ResourceNotFoundException("Order not found with id: " + id);
+                });
+
+        // Validate that the vendor owns the truck this order belongs to
+        validateTruckOwnership(order.getTruckId(), vendorId);
+
+        order.setStatus(request.getStatus());
+        Order saved = orderRepository.save(order);
+        log.info("Order status updated: id={}, status={}", id, request.getStatus());
+        return toResponse(saved);
+    }
+
+    public List<OrderResponse> getOrdersByTruckAndStatus(Long truckId, OrderStatus status) {
+        log.debug("Fetching orders for truckId={} with status={}", truckId, status);
+        return orderRepository.findByTruckIdAndStatusOrderByCreatedAtAsc(truckId, status)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /**
+     * Bulk update order statuses. Validates truck ownership for each order.
+     */
+    @Transactional
+    public List<OrderResponse> bulkUpdateOrderStatus(List<Long> orderIds, OrderStatusUpdateRequest request, Long vendorId) {
+        log.info("Bulk updating {} orders to status {} by vendorId={}", orderIds.size(), request.getStatus(), vendorId);
+        List<OrderResponse> results = new ArrayList<>();
+        for (Long id : orderIds) {
+            try {
+                results.add(updateOrderStatus(id, request, vendorId));
+            } catch (Exception e) {
+                log.warn("Failed to update order {}: {}", id, e.getMessage());
+            }
+        }
+        return results;
+    }
+
+    /**
+     * Cancels an order within the 60-second cancellation window.
+     */
+    @Transactional
+    public OrderResponse cancelOrder(Long orderId, Long customerId) {
+        log.info("Cancellation requested for orderId={} by customerId={}", orderId, customerId);
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> {
+                    log.warn("Order not found with id: {}", orderId);
+                    return new ResourceNotFoundException("Order not found with id: " + orderId);
+                });
+
+        // Verify the order belongs to this customer
+        if (!order.getCustomerId().equals(customerId)) {
+            log.warn("Customer {} does not own order {}", customerId, orderId);
+            throw new UnauthorizedException("This order does not belong to you");
+        }
+
+        // Check if order is already completed or cancelled
+        if (order.getStatus() == OrderStatus.COMPLETED || order.getStatus() == OrderStatus.CANCELLED) {
+            log.warn("Order {} cannot be cancelled - status is {}", orderId, order.getStatus());
+            throw new IllegalStateException("Order cannot be cancelled: already " + order.getStatus());
+        }
+
+        // Check 60-second cancellation window
+        if (order.getCreatedAt() != null) {
+            long secondsSinceOrder = java.time.Duration.between(order.getCreatedAt(), java.time.LocalDateTime.now()).getSeconds();
+            if (secondsSinceOrder > 60) {
+                log.warn("Order {} cancellation window expired ({}s ago)", orderId, secondsSinceOrder);
+                throw new IllegalStateException("Cancellation window of 60 seconds has expired");
+            }
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        Order saved = orderRepository.save(order);
+        log.info("Order {} cancelled successfully", orderId);
+        return toResponse(saved);
+    }
+
+    private OrderResponse toResponse(Order order) {
+        List<OrderResponse.OrderItemResponse> itemResponses = order.getItems().stream()
+                .map(item -> OrderResponse.OrderItemResponse.builder()
+                        .id(item.getId())
+                        .menuItemId(item.getMenuItemId())
+                        .itemName(item.getItemName())
+                        .price(item.getPrice())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
+
+        return OrderResponse.builder()
+                .id(order.getId())
+                .customerId(order.getCustomerId())
+                .truckId(order.getTruckId())
+                .truckName(resolveTruckName(order.getTruckId()))
+                .totalAmount(order.getTotalAmount())
+                .subtotalAmount(order.getSubtotalAmount())
+                .discountAmount(order.getDiscountAmount())
+                .platformFee(order.getPlatformFee())
+                .gstAmount(order.getGstAmount())
+                .commissionAmount(order.getCommissionAmount())
+                .membershipTier(order.getMembershipTier())
+                .priority(order.getPriority())
+                .notes(order.getNotes())
+                .status(order.getStatus())
+                .createdAt(order.getCreatedAt())
+                .items(itemResponses)
+                .build();
+    }
+
+    /**
+     * Resolves the customer's membership benefits, degrading gracefully to a
+     * non-member (full platform fee, no discount) when user-service is down
+     * or the membership is inactive/expired.
+     */
+    private UserMembershipDto resolveMembership(Long customerId) {
+        try {
+            UserMembershipDto membership = userServiceClient.getMembership(customerId);
+            if (membership != null && membership.isActive()) {
+                return membership;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve membership for customerId {}: {}", customerId, e.getMessage());
+        }
+        return UserMembershipDto.builder()
+                .tier("NONE")
+                .active(false)
+                .platformFeePerOrder(new BigDecimal("15.00"))
+                .discountPercent(0)
+                .priorityProcessing(false)
+                .build();
+    }
+
+    /**
+     * Resolves the platform commission for the vendor fulfilling the order,
+     * based on the vendor's subscription plan (10% FREE ... 5% PREMIUM).
+     * Degrades gracefully to zero commission if lookups fail.
+     */
+    private BigDecimal resolveCommission(Long truckId, BigDecimal subtotal) {
+        try {
+            TruckDto truck = truckServiceClient.getTruckById(truckId);
+            if (truck == null || truck.getOwnerId() == null) {
+                return BigDecimal.ZERO;
+            }
+            UserVendorPlanDto vendorPlan = userServiceClient.getVendorPlan(truck.getOwnerId());
+            int pct = vendorPlan != null ? vendorPlan.getCommissionPercent() : 10;
+            if (pct <= 0) {
+                return BigDecimal.ZERO;
+            }
+            return subtotal.multiply(BigDecimal.valueOf(pct))
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        } catch (Exception e) {
+            log.warn("Failed to resolve commission for truckId {}: {}", truckId, e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+
+    /**
+     * Resolves the display name of the truck fulfilling an order. Degrades
+     * gracefully to null (clients can then fall back to the truck id) when
+     * truck-service is unreachable or the truck no longer exists.
+     */
+    private String resolveTruckName(Long truckId) {
+        try {
+            TruckDto truck = truckServiceClient.getTruckById(truckId);
+            return truck != null ? truck.getName() : null;
+        } catch (Exception e) {
+            log.warn("Failed to resolve truck name for truckId {}: {}", truckId, e.getMessage());
+            return null;
+        }
+    }
+}
