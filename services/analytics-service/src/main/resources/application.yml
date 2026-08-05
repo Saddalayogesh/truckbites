@@ -3,16 +3,18 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mysql://order-mysql:3306/order_db
+    url: jdbc:mysql://localhost:3312/order_db
     username: root
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    # Read-only — this service never writes to the database
     hikari:
       read-only: true
   jpa:
     show-sql: false
     properties:
       hibernate:
+        # Prevent any accidental writes
         connection.read_only: true
         hbm2ddl:
           auto: none
@@ -20,15 +22,6 @@ spring:
     openfeign:
       circuitbreaker:
         enabled: true
-
-# Feign circuit breaker tuning: the default 1s TimeLimiter is too tight for
-# cold-start JVM calls, causing transient 503s right after startup. Give
-# calls more headroom while keeping circuit-breaking enabled.
-resilience4j:
-  timelimiter:
-    configs:
-      default:
-        timeout-duration: 5s
 
 # NOTE: This service performs READ-ONLY native SQL queries against order_db.
 # It never persists, creates, or updates any data.
@@ -41,4 +34,4 @@ eureka:
     register-with-eureka: true
     fetch-registry: true
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: http://localhost:8761/eureka/

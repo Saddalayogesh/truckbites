@@ -1,0 +1,7 @@
+# Test isolation: never fetch config from the Config Server during unit tests.
+# A running config-server (or exported JWT_SECRET) would otherwise override the
+# secrets/datasources defined in src/test/resources/application.yml.
+spring:
+  cloud:
+    config:
+      enabled: false

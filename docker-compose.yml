@@ -22,7 +22,7 @@
 # Start order:  eureka-server → config-server → databases+rabbitmq →
 #   auth/user/truck/payment/notification → menu/order/analytics → api-gateway
 #
-# Copy .env.example to .env and adjust variables as needed before starting.
+# Create .env with your secrets before starting (see README Quick Start).
 # ============================================================================
 
 # ===========================================================================
@@ -33,9 +33,9 @@ x-mysql-base: &mysql-base
   image: mysql:8.0
   restart: unless-stopped
   environment: &mysql-env
-    MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+    MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in .env}
   healthcheck:
-    test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-truckbites_root}"]
+    test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
     interval: 30s
     timeout: 5s
     retries: 5
@@ -58,11 +58,11 @@ x-java-base: &java-base
     EUREKA_CLIENT_ENABLED: "true"
     EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
     SPRING_DATASOURCE_USERNAME: root
-    SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
+    SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     CONFIG_SERVER_URI: http://config-server:8888
-    JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (see .env.example)}
-    RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_TLzX3pgsX3VSku}
-    RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-y7oqLKCalRJf5oVTG7hweSKN}
+    JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+    RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:?RAZORPAY_KEY_ID must be set in .env}
+    RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?RAZORPAY_KEY_SECRET must be set in .env}
 
 # ===========================================================================
 # SERVICES
@@ -76,7 +76,7 @@ services:
 
   eureka-server:
     build:
-      context: ./eureka-server
+      context: ./services/eureka-server
       dockerfile: Dockerfile
     container_name: truckbites-eureka
     restart: unless-stopped
@@ -116,7 +116,7 @@ services:
   config-server:
     build:
       context: .
-      dockerfile: config-server/Dockerfile
+      dockerfile: services/config-server/Dockerfile
     container_name: truckbites-config
     restart: unless-stopped
     ports:
@@ -214,7 +214,7 @@ services:
     <<: *java-base
     build:
       context: .
-      dockerfile: auth-service/Dockerfile
+      dockerfile: services/auth-service/Dockerfile
     container_name: truckbites-auth-service
     ports:
       - "8081:8081"
@@ -237,7 +237,7 @@ services:
     <<: *java-base
     build:
       context: .
-      dockerfile: user-service/Dockerfile
+      dockerfile: services/user-service/Dockerfile
     container_name: truckbites-user-service
     ports:
       - "8082:8082"
@@ -260,7 +260,7 @@ services:
     <<: *java-base
     build:
       context: .
-      dockerfile: truck-service/Dockerfile
+      dockerfile: services/truck-service/Dockerfile
     container_name: truckbites-truck-service
     ports:
       - "8083:8083"
@@ -283,7 +283,7 @@ services:
     <<: *java-base
     build:
       context: .
-      dockerfile: payment-service/Dockerfile
+      dockerfile: services/payment-service/Dockerfile
     container_name: truckbites-payment-service
     ports:
       - "8086:8086"
@@ -311,7 +311,7 @@ services:
   notification-service:
     <<: *java-base
     build:
-      context: ./notification-service
+      context: ./services/notification-service
       dockerfile: Dockerfile
     container_name: truckbites-notification-service
     ports:
@@ -324,6 +324,8 @@ services:
       SPRING_RABBITMQ_PASSWORD: guest
       BREVO_SMTP_LOGIN: ${BREVO_SMTP_LOGIN:-}
       BREVO_SMTP_KEY: ${BREVO_SMTP_KEY:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      MAIL_FROM: ${MAIL_FROM:-}
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8087/actuator/health"]
       interval: 30s
@@ -344,7 +346,7 @@ services:
     <<: *java-base
     build:
       context: .
-      dockerfile: menu-service/Dockerfile
+      dockerfile: services/menu-service/Dockerfile
     container_name: truckbites-menu-service
     ports:
       - "8084:8084"
@@ -369,7 +371,7 @@ services:
     <<: *java-base
     build:
       context: .
-      dockerfile: order-service/Dockerfile
+      dockerfile: services/order-service/Dockerfile
     container_name: truckbites-order-service
     ports:
       - "8085:8085"
@@ -400,7 +402,7 @@ services:
     <<: *java-base
     build:
       context: .
-      dockerfile: analytics-service/Dockerfile
+      dockerfile: services/analytics-service/Dockerfile
     container_name: truckbites-analytics-service
     ports:
       - "8088:8088"
@@ -428,7 +430,7 @@ services:
   api-gateway:
     <<: *java-base
     build:
-      context: ./api-gateway
+      context: ./services/api-gateway
       dockerfile: Dockerfile
     container_name: truckbites-api-gateway
     ports:

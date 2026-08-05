@@ -7,3 +7,6 @@ node_modules/
 .vscode/
 dist/
 build/
+
+# Development uploads (runtime artifacts)
+uploads/*

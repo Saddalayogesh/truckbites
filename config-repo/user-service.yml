@@ -2,8 +2,8 @@ server:
   port: 8082
 
 razorpay:
-  key-id: ${RAZORPAY_KEY_ID:rzp_test_TLzX3pgsX3VSku}
-  key-secret: ${RAZORPAY_KEY_SECRET:y7oqLKCalRJf5oVTG7hweSKN}
+  key-id: ${RAZORPAY_KEY_ID}
+  key-secret: ${RAZORPAY_KEY_SECRET}
 
 jwt:
   secret: ${JWT_SECRET}
