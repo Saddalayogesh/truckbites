@@ -7,7 +7,7 @@ spring:
     port: 587
     username: ${BREVO_SMTP_LOGIN}
     password: ${BREVO_SMTP_KEY}
-    from: "TruckBites <yogeshsaddala29@gmail.com>"
+    from: ${MAIL_FROM}
     properties:
       mail:
         smtp:

@@ -12,8 +12,8 @@
 **/target/
 
 # Node / frontend
-truckbites-frontend/node_modules
-truckbites-frontend/dist
+frontend/truckbites-frontend/node_modules
+frontend/truckbites-frontend/dist
 
 # IDE / OS
 .idea
@@ -25,7 +25,6 @@ Thumbs.db
 # Env / secrets - never ship real secrets into an image build context
 **/.env
 **/.env.*
-!.env.example
 
 # Logs / misc
 *.log
