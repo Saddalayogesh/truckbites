@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
         info = @Info(
                 title = "Notification Service API",
                 version = "1.0.0",
-                description = "Event-driven notification service for TruckBites. This service consumes RabbitMQ events (order.placed, order.paid) and sends transactional emails via Mailtrap SMTP. It has no REST endpoints for core functionality.",
+                description = "Event-driven notification service for TruckBites. This service consumes RabbitMQ events (order.placed, order.paid) and sends transactional emails via Brevo SMTP. It has no REST endpoints for core functionality.",
                 contact = @Contact(name = "TruckBites Team", url = "https://github.com/Saddalayogesh/truckbites"),
                 license = @License(name = "MIT", url = "https://opensource.org/licenses/MIT")
         ),

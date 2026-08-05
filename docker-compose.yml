@@ -322,8 +322,8 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: guest
       SPRING_RABBITMQ_PASSWORD: guest
-      MAILTRAP_USERNAME: ${MAILTRAP_USERNAME:-}
-      MAILTRAP_PASSWORD: ${MAILTRAP_PASSWORD:-}
+      BREVO_SMTP_LOGIN: ${BREVO_SMTP_LOGIN:-}
+      BREVO_SMTP_KEY: ${BREVO_SMTP_KEY:-}
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8087/actuator/health"]
       interval: 30s

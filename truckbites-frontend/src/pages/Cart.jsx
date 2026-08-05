@@ -9,13 +9,6 @@ import { useToast } from '../components/Toast';
 import { showConfirm } from '../utils/confirm';
 import { NON_MEMBER, formatINR, estimateCartPricing } from '../utils/pricing';
 
-const formatPrice = (price) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(price);
-};
-
 export default function Cart() {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -155,7 +148,7 @@ export default function Cart() {
                     {/* Item info */}
                     <div className="flex-1 min-w-[150px]">
                       <p className="font-medium text-ink truncate">{cartItem.name}</p>
-                      <p className="text-sm text-body/80 mt-0.5">{formatPrice(cartItem.price)} each</p>
+                      <p className="text-sm text-body/80 mt-0.5">{formatINR(cartItem.price)} each</p>
                     </div>
 
                     {/* Quantity controls */}
@@ -182,7 +175,7 @@ export default function Cart() {
                     {/* Line total */}
                     <div className="text-right w-24 ml-auto sm:ml-0">
                       <p className="font-heading font-semibold text-ink">
-                        {formatPrice(cartItem.price * cartItem.quantity)}
+                        {formatINR(cartItem.price * cartItem.quantity)}
                       </p>
                     </div>
 
@@ -208,7 +201,7 @@ export default function Cart() {
       <div className="card p-6 lg:p-8 sticky bottom-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-body">Items ({itemCount})</span>
-          <span className="text-ink font-medium">{formatPrice(pricing.subtotal)}</span>
+          <span className="text-ink font-medium">{formatINR(pricing.subtotal)}</span>
         </div>
         {pricing.discount > 0 && (
           <div className="flex items-center justify-between mb-2">
@@ -230,7 +223,7 @@ export default function Cart() {
         </div>
         <div className="border-t border-line pt-4 flex items-center justify-between mb-2">
           <span className="text-xl font-heading font-bold text-ink">Total</span>
-          <span className="text-xl font-heading font-bold text-primary">{formatPrice(pricing.total)}</span>
+          <span className="text-xl font-heading font-bold text-primary">{formatINR(pricing.total)}</span>
         </div>
         <p className="text-[11px] text-body/60 mb-6">
           Platform fee & GST charged in INR (₹) per order.

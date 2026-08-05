@@ -17,7 +17,7 @@ app:
     queue:
       notification: notification.queue
 
-# Mailtrap config is provided by Config Server in notification-service.yml
+# Brevo SMTP config is provided by Config Server in notification-service.yml
 
 jwt:
   secret: ${JWT_SECRET}

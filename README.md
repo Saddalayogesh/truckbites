@@ -86,7 +86,7 @@ graph TD
     end
 
     subgraph Mail
-        MAILTRAP[Mailtrap SMTP]
+        BREVO[Brevo SMTP]
     end
 
     FE -->|REST / GraphQL| GW
@@ -119,7 +119,7 @@ graph TD
     PAY --x|order.paid| RMQ
     NOTIF x--|order.placed<br/>order.paid| RMQ
 
-    NOTIF -.->|SMTP| MAILTRAP
+    NOTIF -.->|SMTP| BREVO
 
     AUTH -.->|Register| EU
     USER -.->|Register| EU
@@ -144,7 +144,7 @@ graph TD
     style EU fill:#6DB33F,color:#fff
     style CS fill:#6DB33F,color:#fff
     style RMQ fill:#FF6600,color:#fff
-    style MAILTRAP fill:#888,color:#fff
+    style BREVO fill:#0b5cff,color:#fff
 ```
 
 ### Startup Order
@@ -186,7 +186,7 @@ Containers start in strict dependency order, managed by Docker Compose `depends_
 | Eureka Server | `8761` | Service discovery (Spring Cloud Netflix Eureka) |
 | Config Server | `8888` | Centralized configuration (Spring Cloud Config) |
 | RabbitMQ | `5672` / `15672` | Message broker (AMQP + Management UI) |
-| Mailtrap | external | SMTP for email notifications (dev/testing) |
+| Brevo | external | SMTP relay for transactional email notifications |
 
 ---
 
@@ -204,7 +204,7 @@ Containers start in strict dependency order, managed by Docker Compose `depends_
 - **Spring Cloud OpenFeign** — inter-service HTTP calls with
   **Resilience4j** circuit breakers and fallback factories
 - **Spring Cloud Stream / RabbitMQ** — async event-driven communication
-- **Spring Boot Starter Mail** — SMTP email sending via Mailtrap
+- **Spring Boot Starter Mail** — SMTP email sending via Brevo
 - **SpringDoc OpenAPI** — Swagger UI at `/swagger-ui.html` per service
 - **Lombok** — boilerplate reduction
 
@@ -246,8 +246,9 @@ cp .env.example .env
 
 > **Note:** `.env` is **required** — `JWT_SECRET` has no default and the stack
 > refuses to start without it (a known tutorial secret was removed from the
-> codebase for security). `MAILTRAP_USERNAME` / `MAILTRAP_PASSWORD` are only
-> needed if you want the notification service to send emails. Without them, th
+> codebase for security). `BREVO_SMTP_LOGIN` / `BREVO_SMTP_KEY` are only
+> needed if you want the notification service to send emails. Without them, the
+> notification service still starts but skips email sending.
 
 > **⚠️ Important:** if you previously exported `JWT_SECRET` in your shell, clear
 > it first — a stale export overrides `.env`:

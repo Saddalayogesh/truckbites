@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { getOrderById, getMyOrders, cancelOrder } from '../api/orderApi';
 import { getTruckById } from '../api/truckApi';
 import { getPaymentsByOrder } from '../api/paymentApi';
+import { formatINR } from '../utils/pricing';
 import { useToast } from '../components/Toast';
 import { showConfirm } from '../utils/confirm';
 import logger from '../utils/logger';
@@ -43,13 +44,6 @@ function playNotificationSound() {
     osc.stop(ctx.currentTime + 0.4);
   } catch { /* Audio not supported */ }
 }
-
-const formatPrice = (price) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(price);
-};
 
 const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleString('en-US', {
@@ -123,7 +117,7 @@ function OrderCard({ order, onCancel }) {
   return (
     <div className="card p-0 overflow-hidden card-hover">
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary to-primary-dark px-6 py-4 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-primary to-primary-dark px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-white font-heading font-semibold">Order #{order.id}</h3>
           <p className="text-white/90 text-sm mt-0.5 inline-flex items-center gap-1.5">
@@ -165,7 +159,7 @@ function OrderCard({ order, onCancel }) {
                   <span className="text-body/70 text-sm w-6">{item.quantity}x</span>
                   <span className="text-ink">{item.itemName}</span>
                 </div>
-                <span className="text-body text-sm">{formatPrice(item.price * item.quantity)}</span>
+                <span className="text-body text-sm">{formatINR(item.price * item.quantity)}</span>
               </div>
             ))}
           </div>
@@ -222,7 +216,7 @@ function OrderCard({ order, onCancel }) {
               </div>
             </div>
             <span className="text-sm font-medium text-body">
-              {payment.status === 'SUCCESS' ? 'Paid' : formatPrice(order.totalAmount)}
+              {payment.status === 'SUCCESS' ? 'Paid' : formatINR(order.totalAmount)}
             </span>
           </div>
         )}
@@ -230,7 +224,7 @@ function OrderCard({ order, onCancel }) {
         {/* Total */}
         <div className="border-t border-line pt-3 flex justify-between items-center mb-6">
           <span className="font-heading font-semibold text-ink">Total</span>
-          <span className="font-heading font-bold text-primary text-lg">{formatPrice(order.totalAmount)}</span>
+          <span className="font-heading font-bold text-primary text-lg">{formatINR(order.totalAmount)}</span>
         </div>
 
         {/* Status progress bar */}
@@ -251,7 +245,7 @@ function OrderCard({ order, onCancel }) {
                     {STEP_ICONS[step]}
                   </div>
                   <p
-                    className={'text-xs mt-1.5 font-medium whitespace-nowrap ' +
+                    className={'text-[10px] sm:text-xs mt-1.5 font-medium leading-tight text-center whitespace-normal sm:whitespace-nowrap ' +
                       (idx <= currentStepIndex ? 'text-primary' : 'text-body/70')
                     }
                   >

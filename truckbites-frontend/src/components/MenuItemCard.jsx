@@ -2,14 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { Clock } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { formatINR } from '../utils/pricing';
 import { useToast } from './Toast';
-
-const formatPrice = (price) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(price);
-};
 
 export default function MenuItemCard({ item, truckId, truck }) {
   const navigate = useNavigate();
@@ -66,7 +60,7 @@ export default function MenuItemCard({ item, truckId, truck }) {
             {item.name}
           </h3>
           <span className="text-lg font-heading font-bold text-primary whitespace-nowrap">
-            {formatPrice(item.price)}
+            {formatINR(item.price)}
           </span>
         </div>
 

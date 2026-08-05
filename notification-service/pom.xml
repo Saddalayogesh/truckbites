@@ -15,7 +15,7 @@
     <artifactId>notification-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>notification-service</name>
-    <description>Notification Service for TruckBites (email via Mailtrap)</description>
+    <description>Notification Service for TruckBites (email via Brevo SMTP)</description>
 
     <properties>
         <java.version>25</java.version>

@@ -5,6 +5,7 @@ import { getDailySales, getTopSellingItems, getOrderSummary } from '../api/analy
 import LoadingSpinner from '../components/LoadingSpinner';
 import { useToast } from '../components/Toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { formatINR } from '../utils/pricing';
 
 function formatDate(dateStr) {
   var date = new Date(dateStr);
@@ -207,7 +208,7 @@ export default function VendorAnalytics() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
             <div className="card p-4 sm:p-6">
               <p className="text-xs sm:text-sm text-body font-medium">Total Revenue</p>
-              <p className="text-xl sm:text-2xl font-heading font-bold text-ink mt-1">${totalRevenue.toFixed(2)}</p>
+              <p className="text-xl sm:text-2xl font-heading font-bold text-ink mt-1">{formatINR(totalRevenue)}</p>
             </div>
             <div className="card p-4 sm:p-6">
               <p className="text-xs sm:text-sm text-body font-medium">Total Orders</p>
@@ -231,10 +232,10 @@ export default function VendorAnalytics() {
                   <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E9E4DA" />
                     <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#D9B08C" />
-                    <YAxis tick={{ fontSize: 12 }} stroke="#D9B08C" tickFormatter={(v) => '$' + v} />
+                    <YAxis tick={{ fontSize: 12 }} stroke="#D9B08C" tickFormatter={(v) => '₹' + v} />
                     <Tooltip
                       contentStyle={{ borderRadius: '12px', border: '1px solid #E9E4DA', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }}
-                      formatter={(value) => ['$' + Number(value).toFixed(2), 'Sales']}
+                      formatter={(value) => ['₹' + Number(value).toFixed(2), 'Sales']}
                     />
                     <Line type="monotone" dataKey="sales" stroke="#B85C38" strokeWidth={2.5} dot={{ fill: '#B85C38', strokeWidth: 2, r: 4 }} activeDot={{ r: 6, fill: '#C9A46A' }} />
                   </LineChart>
