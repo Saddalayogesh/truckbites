@@ -1,7 +1,9 @@
 package com.truckbites.payment.service;
 
 import com.truckbites.common.exception.ResourceNotFoundException;
-import com.truckbites.payment.dto.PaymentRequest;
+import com.truckbites.payment.dto.CreateRazorpayOrderRequest;
+import com.truckbites.payment.dto.RazorpayOrderResponse;
+import com.truckbites.payment.dto.VerifyRazorpayPaymentRequest;
 import com.truckbites.payment.dto.PaymentResponse;
 import com.truckbites.payment.event.OrderPaidEvent;
 import com.truckbites.payment.event.PaymentEventPublisher;
@@ -11,10 +13,10 @@ import com.truckbites.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 @Slf4j
@@ -24,36 +26,69 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentEventPublisher eventPublisher;
+    private final RazorpayService razorpayService;
 
     /**
-     * Processes a payment for the given order.
-     * Delegates to the mock gateway call, saves the payment record,
-     * and publishes an order.paid event on success.
+     * Creates a Razorpay order for the given amount. The returned order id is
+     * what the frontend uses to initialise the Razorpay Checkout modal.
      */
     @Transactional
-    public PaymentResponse processPayment(PaymentRequest request) {
-        log.info("Processing payment: orderId={}, amount={}, method={}",
-                request.getOrderId(), request.getAmount(), request.getMethod());
+    public RazorpayOrderResponse createRazorpayOrder(CreateRazorpayOrderRequest request) {
+        String currency = (request.getCurrency() != null && !request.getCurrency().isBlank())
+                ? request.getCurrency() : "INR";
+        String receipt = (request.getReceipt() != null && !request.getReceipt().isBlank())
+                ? request.getReceipt()
+                : (request.getOrderId() != null
+                    ? "order_" + request.getOrderId()
+                    : "receipt_" + System.currentTimeMillis());
 
-        // --- Mock gateway call ---
-        PaymentStatus gatewayStatus = simulateGatewayCall(request);
-        log.info("Gateway response for orderId={}: {}", request.getOrderId(), gatewayStatus);
+        RazorpayService.RazorpayOrderResult result =
+                razorpayService.createOrder(request.getAmount(), currency, receipt, request.getDescription());
+        log.info("Razorpay order ready: orderId={}, razorpayOrderId={}, amount={} {}",
+                request.getOrderId(), result.razorpayOrderId(), request.getAmount(), currency);
 
-        // Use the customer-provided UTR as the transaction reference when present.
-        // A multi-truck checkout reuses the same UTR across several orders, so the
-        // stored ref is suffixed with the orderId to satisfy the unique constraint.
-        String transactionRef = request.getTransactionRef();
-        String storedRef = null;
-        if (transactionRef != null && !transactionRef.isBlank()) {
-            storedRef = transactionRef.trim() + "-" + request.getOrderId();
+        return RazorpayOrderResponse.builder()
+                .orderId(request.getOrderId())
+                .razorpayOrderId(result.razorpayOrderId())
+                .amount(request.getAmount())
+                .currency(currency)
+                .keyId(result.keyId())
+                .build();
+    }
+
+    /**
+     * Verifies the Razorpay payment signature and records the payment.
+     * A valid signature stores the payment as SUCCESS and publishes an
+     * order.paid event; an unverifiable payment is stored as FAILED.
+     */
+    @Transactional
+    public PaymentResponse verifyAndRecordPayment(VerifyRazorpayPaymentRequest request) {
+        log.info("Verifying Razorpay payment: orderId={}, razorpayOrderId={}, paymentId={}",
+                request.getOrderId(), request.getRazorpayOrderId(), request.getRazorpayPaymentId());
+
+        boolean signatureValid = razorpayService.verifySignature(
+                request.getRazorpayOrderId(), request.getRazorpayPaymentId(), request.getRazorpaySignature());
+        // Only hit the Razorpay API to cross-check the captured amount when the
+        // signature already checks out — avoids outbound calls on forged attempts.
+        boolean amountMatches = false;
+        if (signatureValid) {
+            long expectedPaise = request.getAmount()
+                    .multiply(BigDecimal.valueOf(100))
+                    .setScale(0, RoundingMode.HALF_UP)
+                    .longValueExact();
+            amountMatches = razorpayService.isOrderAmountMatching(
+                    request.getRazorpayOrderId(), expectedPaise);
         }
+        PaymentStatus status = (signatureValid && amountMatches)
+                ? PaymentStatus.SUCCESS : PaymentStatus.FAILED;
+
         Payment payment = Payment.builder()
                 .orderId(request.getOrderId())
                 .customerEmail(request.getCustomerEmail())
                 .amount(request.getAmount())
-                .status(gatewayStatus)
-                .method(request.getMethod())
-                .transactionRef(storedRef)
+                .status(status)
+                .method(request.getMethod() != null ? request.getMethod() : "RAZORPAY")
+                .transactionRef(request.getRazorpayPaymentId())
                 .build();
 
         Payment saved = paymentRepository.save(payment);
@@ -66,44 +101,6 @@ public class PaymentService {
         }
 
         return toResponse(saved);
-    }
-
-    /**
-     * Simulates a call to an external payment gateway.
-     * Returns SUCCESS only when the customer provided a valid UPI transaction
-     * reference (UTR) — this verifies they actually completed the payment in
-     * their UPI app. Returns FAILED when the amount is ≤ 0 or no valid UTR is given.
-     * <p>
-     * This is a clearly-marked mock — replace with actual gateway integration.
-     */
-    PaymentStatus simulateGatewayCall(PaymentRequest request) {
-        log.debug("Simulating payment gateway call for orderId={}, amount={}",
-                request.getOrderId(), request.getAmount());
-
-        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            log.warn("Gateway returned FAILED: amount is ≤ 0 for orderId={}", request.getOrderId());
-            return PaymentStatus.FAILED;
-        }
-
-        String transactionRef = request.getTransactionRef();
-        boolean validUtr = transactionRef != null
-                && transactionRef.trim().matches("^[A-Za-z0-9-]{6,30}$");
-        if (!validUtr) {
-            log.warn("Gateway returned FAILED: missing or invalid UPI transaction reference (UTR) for orderId={}",
-                    request.getOrderId());
-            return PaymentStatus.FAILED;
-        }
-
-        // Simulate slight processing delay
-        try {
-            Thread.sleep(50);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn("Gateway simulation interrupted for orderId={}", request.getOrderId());
-        }
-
-        log.debug("Gateway returned SUCCESS for orderId={}", request.getOrderId());
-        return PaymentStatus.SUCCESS;
     }
 
     private void publishOrderPaidEvent(Payment payment) {

@@ -61,6 +61,8 @@ x-java-base: &java-base
     SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-truckbites_root}
     CONFIG_SERVER_URI: http://config-server:8888
     JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (see .env.example)}
+    RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_TLzX3pgsX3VSku}
+    RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-y7oqLKCalRJf5oVTG7hweSKN}
 
 # ===========================================================================
 # SERVICES

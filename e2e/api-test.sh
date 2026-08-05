@@ -251,13 +251,13 @@ echo "[7] PAYMENT - process payment"
 if [ -n "$ORDER_ID" ]; then
   AMT=$(json_get "$(curl -s "$GW/orders/$ORDER_ID" -H "Authorization: Bearer $CUST_TOKEN")" "totalAmount")
   if [ -z "$AMT" ] || [ "$AMT" = "null" ]; then AMT=7.98; fi
-  PP=$(curl -s -w "\n%{http_code}" -X POST "$GW/payments" \
+  PP=$(curl -s -w "\n%{http_code}" -X POST "$GW/payments/razorpay/order" \
     -H "Authorization: Bearer $CUST_TOKEN" -H "Content-Type: application/json" \
-    -d "{\"orderId\":$ORDER_ID,\"amount\":$AMT,\"method\":\"CARD\"}")
+    -d "{\"orderId\":$ORDER_ID,\"amount\":$AMT,\"currency\":\"INR\"}")
   CODE=$(echo "$PP" | tail -1)
-  PAY_STATUS=$(json_get "$(echo "$PP" | head -n -1)" "status")
-  check "process payment (201)" 201 "$CODE"
-  echo "  INFO: payment status=$PAY_STATUS"
+  RP_ORDER=$(json_get "$(echo "$PP" | head -n -1)" "razorpayOrderId")
+  check "create razorpay order (200)" 200 "$CODE"
+  echo "  INFO: razorpayOrderId=$RP_ORDER (amount=$AMT INR)"
 fi
 
 # --- 8. VENDOR: view & update order status --------------------------------------

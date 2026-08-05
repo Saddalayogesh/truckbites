@@ -4,13 +4,14 @@ import { getMyTrucks, updateTruckLocation, toggleTruckStatus, createTruck, updat
 import { getMenuByTruck, addMenuItem, updateMenuItem, updateInventory, deleteMenuItem } from '../api/menuApi';
 import { getOrdersByTruck, updateOrderStatus, bulkUpdateOrderStatus } from '../api/orderApi';
 import { getVendorPlan } from '../api/userApi';
+import { createRazorpayOrder } from '../api/paymentApi';
 import MapPicker from '../components/MapPicker';
-import { Truck, UtensilsCrossed, Star, AlarmClock, ClipboardList, Pencil, TriangleAlert, BadgeCheck } from 'lucide-react';
+import { Truck, UtensilsCrossed, Star, AlarmClock, ClipboardList, Pencil, TriangleAlert } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { showConfirm } from '../utils/confirm';
 import logger from '../utils/logger';
-import { isValidUtr } from '../utils/upi';
+import { openRazorpayCheckout } from '../utils/razorpay';
 import { FEATURED_PROMOTIONS, formatINR, vendorPlanByPlan } from '../utils/pricing';
 
 const COMPONENT = 'VendorDashboard';
@@ -64,8 +65,7 @@ export default function VendorDashboard() {
   const [promoteTruck, setPromoteTruck] = useState(null);
   const [promotingDays, setPromotingDays] = useState(7);
   const [promoting, setPromoting] = useState(false);
-  const [promoteUpiRef, setPromoteUpiRef] = useState('');
-  const [promoteUpiError, setPromoteUpiError] = useState('');
+  const [promoteError, setPromoteError] = useState('');
 
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
@@ -337,31 +337,48 @@ export default function VendorDashboard() {
 
   const handlePromote = async () => {
     if (!promoteTruck) return;
-    // UPI payment verification: the vendor must provide the transaction
-    // reference (UTR) from their UPI app — the backend only features the truck
-    // once the payment is verified.
-    const trimmedRef = promoteUpiRef.trim();
-    if (!trimmedRef) {
-      setPromoteUpiError('Enter the UPI transaction ID from your payment app to verify the payment.');
-      addToast('Enter your UPI transaction ID', 'warning');
-      return;
-    }
-    if (!isValidUtr(trimmedRef)) {
-      setPromoteUpiError('That does not look like a valid UPI transaction ID (6+ letters/numbers).');
-      addToast('Invalid UPI transaction ID', 'warning');
-      return;
-    }
+    const promo = FEATURED_PROMOTIONS.find((p) => p.days === promotingDays);
+    if (!promo) return;
+
     setPromoting(true);
-    setPromoteUpiError('');
+    setPromoteError('');
     try {
-      const res = await featureTruck(promoteTruck.id, promotingDays, trimmedRef);
+      // 1. Create a Razorpay order server-side
+      const rpRes = await createRazorpayOrder({
+        amount: promo.price,
+        currency: 'INR',
+        receipt: `feature-${promoteTruck.id}-${promotingDays}d`,
+        description: `TruckBites featured promotion for ${promoteTruck.name}`,
+      });
+      const rpOrder = rpRes.data;
+
+      // 2. Open the Razorpay Checkout — the vendor completes the payment here
+      const payment = await openRazorpayCheckout({
+        keyId: rpOrder.keyId,
+        amount: rpOrder.amount,
+        currency: rpOrder.currency,
+        orderId: rpOrder.razorpayOrderId,
+        name: 'TruckBites',
+        description: `Feature ${promoteTruck.name} for ${promotingDays} days`,
+      });
+
+      // 3. Feature the truck — the backend verifies the Razorpay signature
+      const res = await featureTruck(
+        promoteTruck.id,
+        promotingDays,
+        payment.razorpayOrderId,
+        payment.razorpayPaymentId,
+        payment.razorpaySignature
+      );
       setTrucks((prev) => prev.map((t) => t.id === promoteTruck.id ? { ...t, featuredUntil: res.data.featuredUntil } : t));
       addToast(`"${promoteTruck.name}" is now featured for ${promotingDays} days!`, 'success');
       setPromoteTruck(null);
     } catch (err) {
-      const message = err.response?.data?.message || err.response?.data?.error || 'Failed to feature truck';
-      setPromoteUpiError(message);
-      addToast(message, 'error');
+      const cancelled = err.message === 'Payment cancelled';
+      const message = err.response?.data?.message || err.response?.data?.error
+        || (cancelled ? 'Payment cancelled' : 'Failed to feature truck');
+      setPromoteError(message);
+      addToast(message, cancelled ? 'info' : 'error');
     } finally {
       setPromoting(false);
     }
@@ -749,7 +766,7 @@ export default function VendorDashboard() {
                 </h2>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => { setPromotingDays(7); setPromoteTruck(selectedTruck); setPromoteUpiRef(''); setPromoteUpiError(''); }}
+                    onClick={() => { setPromotingDays(7); setPromoteTruck(selectedTruck); setPromoteError(''); }}
                     className="btn btn-primary btn-sm"
                   >
                     <Star className="w-4 h-4 fill-current" strokeWidth={0} />
@@ -1498,32 +1515,16 @@ export default function VendorDashboard() {
                 ))}
               </div>
 
-              {/* UPI verification */}
+              {/* Payment — Razorpay */}
               <div className="mt-5 pt-5 border-t border-line">
-                <label
-                  htmlFor="promote-upi-ref"
-                  className="flex items-center gap-1.5 text-sm font-heading font-semibold text-ink mb-1.5"
-                >
-                  <BadgeCheck className="w-4 h-4 text-primary" strokeWidth={2} />
-                  UPI Transaction ID
-                </label>
-                <input
-                  id="promote-upi-ref"
-                  type="text"
-                  inputMode="text"
-                  value={promoteUpiRef}
-                  onChange={(e) => { setPromoteUpiRef(e.target.value); if (promoteUpiError) setPromoteUpiError(''); }}
-                  placeholder="e.g. 123456789012"
-                  className="input-field text-center font-mono tracking-widest"
-                  aria-invalid={!!promoteUpiError}
-                  autoComplete="off"
-                />
-                <p className="text-xs text-body/60 mt-2">
-                  After paying in your UPI app, copy the transaction ID / UTR shown in the payment
-                  confirmation and enter it above. The promotion is only activated once the payment is verified.
+                <p className="text-sm text-body">
+                  Pay <strong className="text-ink">{formatINR(FEATURED_PROMOTIONS.find((p) => p.days === promotingDays)?.price || 0)}</strong>{' '}
+                  securely with <strong className="text-ink">Razorpay</strong> (UPI, cards, net banking
+                  or wallets). A secure payment window opens when you confirm — the promotion activates
+                  as soon as the payment is verified.
                 </p>
-                {promoteUpiError && (
-                  <p className="text-xs text-error mt-1.5">{promoteUpiError}</p>
+                {promoteError && (
+                  <p className="text-xs text-error mt-3">{promoteError}</p>
                 )}
               </div>
             </div>

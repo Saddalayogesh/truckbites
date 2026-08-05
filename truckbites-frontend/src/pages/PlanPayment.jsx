@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Check, Smartphone } from 'lucide-react';
+import { ArrowLeft, Check, CreditCard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { subscribeMembership, subscribeVendorPlan } from '../api/userApi';
-import UpiPayment from '../components/UpiPayment';
-import { isValidUtr } from '../utils/upi';
+import { createRazorpayOrder } from '../api/paymentApi';
+import { openRazorpayCheckout } from '../utils/razorpay';
 import {
   MEMBERSHIP_TIERS,
   VENDOR_PLANS,
@@ -28,8 +28,6 @@ export default function PlanPayment({ kind }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [paid, setPaid] = useState(false);
-  const [upiRef, setUpiRef] = useState('');
-  const [upiRefError, setUpiRefError] = useState('');
 
   const isMembership = kind === 'membership';
   const validKeys = isMembership
@@ -42,33 +40,62 @@ export default function PlanPayment({ kind }) {
   const features = plan.features || [];
 
   const handlePay = async () => {
-    // UPI payment verification: the customer must provide the transaction
-    // reference (UTR) from their UPI app — the backend only activates the plan
-    // once the payment is verified.
-    const trimmedRef = upiRef.trim();
-    if (!trimmedRef) {
-      setUpiRefError('Enter the UPI transaction ID from your payment app to verify the payment.');
-      addToast('Enter your UPI transaction ID', 'warning');
+    if (!user?.id) {
+      addToast('Please sign in before subscribing', 'warning');
+      navigate('/login', { state: { from: 'pricing' } });
       return;
     }
-    if (!isValidUtr(trimmedRef)) {
-      setUpiRefError('That does not look like a valid UPI transaction ID (6+ letters/numbers).');
-      addToast('Invalid UPI transaction ID', 'warning');
-      return;
-    }
-
     setSubmitting(true);
     setError(null);
-    setUpiRefError('');
     try {
+      const receipt = isMembership
+        ? `membership-${plan.tier}-${user?.id || 'guest'}`
+        : `vendor-${plan.plan}-${user?.id || 'guest'}`;
+      const description = plan.displayName + ' ' + planLabel;
+
+      // 1. Create a Razorpay order server-side
+      const rpRes = await createRazorpayOrder({
+        amount: plan.monthlyPrice,
+        currency: 'INR',
+        receipt,
+        description,
+      });
+      const rpOrder = rpRes.data;
+
+      // 2. Open the Razorpay Checkout — the customer completes the payment here
+      const payment = await openRazorpayCheckout({
+        keyId: rpOrder.keyId,
+        amount: rpOrder.amount,
+        currency: rpOrder.currency,
+        orderId: rpOrder.razorpayOrderId,
+        name: 'TruckBites',
+        description,
+        prefill: { email: user?.email },
+      });
+
+      // 3. Activate the plan — the backend verifies the Razorpay signature
       if (isMembership) {
-        await subscribeMembership(user.id, plan.tier, trimmedRef);
+        await subscribeMembership(
+          user.id,
+          plan.tier,
+          payment.razorpayOrderId,
+          payment.razorpayPaymentId,
+          payment.razorpaySignature
+        );
       } else {
-        await subscribeVendorPlan(user.id, plan.plan, trimmedRef);
+        await subscribeVendorPlan(
+          user.id,
+          plan.plan,
+          payment.razorpayOrderId,
+          payment.razorpayPaymentId,
+          payment.razorpaySignature
+        );
       }
+
       setPaid(true);
       addToast(`You're now subscribed to the ${plan.displayName} ${planLabel.toLowerCase()}!`, 'success');
     } catch (err) {
+      const cancelled = err.message === 'Payment cancelled';
       // Surface the real failure: backend message (if any), HTTP status, or a network hint.
       const status = err.response?.status;
       const detail = err.response?.data?.message || err.response?.data?.error || err.message;
@@ -78,7 +105,7 @@ export default function PlanPayment({ kind }) {
             ? `Payment failed (${status}). Please try again.`
             : 'Payment failed: could not reach the server. Check that the backend is running.');
       setError(message);
-      addToast(message, 'error');
+      addToast(message, cancelled ? 'info' : 'error');
     } finally {
       setSubmitting(false);
     }
@@ -175,48 +202,16 @@ export default function PlanPayment({ kind }) {
             )}
           </div>
 
-          {/* UPI payment — QR only */}
+          {/* Payment — Razorpay */}
           <div className="card p-6">
-            <h2 className="text-lg font-heading font-semibold text-ink mb-4 flex items-center gap-2">
-              <Smartphone className="h-5 w-5 text-primary" strokeWidth={2} /> Pay via UPI
+            <h2 className="text-lg font-heading font-semibold text-ink mb-2 flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" strokeWidth={2} /> Payment
             </h2>
-            <UpiPayment
-              label="TruckBites"
-              amount={plan.monthlyPrice}
-              note={plan.displayName + ' ' + planLabel}
-            />
-
-            {/* UPI verification */}
-            <div className="mt-5 pt-5 border-t border-line">
-              <label
-                htmlFor="upi-ref"
-                className="flex items-center gap-1.5 text-sm font-heading font-semibold text-ink mb-1.5"
-              >
-                <BadgeCheck className="w-4 h-4 text-primary" strokeWidth={2} />
-                UPI Transaction ID
-              </label>
-              <input
-                id="upi-ref"
-                type="text"
-                inputMode="text"
-                value={upiRef}
-                onChange={(e) => { setUpiRef(e.target.value); if (upiRefError) setUpiRefError(''); }}
-                placeholder="e.g. 123456789012"
-                className="input-field text-center font-mono tracking-widest"
-                aria-invalid={!!upiRefError}
-                autoComplete="off"
-              />
-              <p className="text-xs text-body/60 mt-2">
-                After paying in your UPI app, copy the transaction ID / UTR shown in the payment
-                confirmation and enter it above. Your plan is only activated once the payment is verified.
-              </p>
-              {upiRefError && (
-                <p className="text-xs text-error mt-1.5">{upiRefError}</p>
-              )}
-            </div>
-
-            <p className="text-xs text-body/60 mt-4 text-center">
-              Scan the QR with any UPI app, complete the payment, then enter the transaction ID to activate your plan.
+            <p className="text-sm text-body">
+              Pay securely with <strong className="text-ink">Razorpay</strong> using UPI, cards, net
+              banking or wallets. Click <strong className="text-ink">Pay {formatINR(plan.monthlyPrice)}</strong>{' '}
+              in the summary to open the secure payment window. Your plan activates as soon as the
+              payment is verified.
             </p>
           </div>
         </div>
@@ -278,4 +273,3 @@ export default function PlanPayment({ kind }) {
     </div>
   );
 }
-

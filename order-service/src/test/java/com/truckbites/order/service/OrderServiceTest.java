@@ -5,6 +5,8 @@ import com.truckbites.order.client.MenuItemDto;
 import com.truckbites.order.client.MenuServiceClient;
 import com.truckbites.order.client.TruckDto;
 import com.truckbites.order.client.TruckServiceClient;
+import com.truckbites.order.client.UserMembershipDto;
+import com.truckbites.order.client.UserServiceClient;
 import com.truckbites.order.dto.CreateOrderRequest;
 import com.truckbites.order.dto.OrderResponse;
 import com.truckbites.order.dto.OrderStatusUpdateRequest;
@@ -44,6 +46,8 @@ class OrderServiceTest {
     private TruckServiceClient truckServiceClient;
     @Mock
     private OrderEventPublisher eventPublisher;
+    @Mock
+    private UserServiceClient userServiceClient;
 
     @Captor
     private ArgumentCaptor<Order> orderCaptor;
@@ -52,7 +56,7 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
-        orderService = new OrderService(orderRepository, menuServiceClient, truckServiceClient, eventPublisher);
+        orderService = new OrderService(orderRepository, menuServiceClient, truckServiceClient, userServiceClient, eventPublisher);
     }
 
     private MenuItemDto createMenuItem(Long id, String name, BigDecimal price, int quantity, boolean available) {
@@ -86,32 +90,28 @@ class OrderServiceTest {
         MenuItemDto menuItem = createMenuItem(1L, "Taco", BigDecimal.valueOf(3.99), 10, true);
         when(menuServiceClient.getMenuItemById(1L)).thenReturn(menuItem);
 
-        Order savedOrder = Order.builder()
-                .id(1L)
-                .customerId(1L)
-                .customerEmail("customer@example.com")
-                .truckId(1L)
-                .totalAmount(BigDecimal.valueOf(7.98))
-                .status(OrderStatus.PLACED)
-                .items(List.of(
-                        OrderItem.builder()
-                                .menuItemId(1L)
-                                .itemName("Taco")
-                                .price(BigDecimal.valueOf(3.99))
-                                .quantity(2)
-                                .build()
-                ))
+        // Non-member: no discount, no platform fee (GST 5% on food subtotal still applies)
+        UserMembershipDto membership = UserMembershipDto.builder()
+                .tier("NONE")
+                .active(true)
+                .platformFeePerOrder(BigDecimal.ZERO)
+                .discountPercent(0)
+                .priorityProcessing(false)
                 .build();
-        savedOrder.getItems().forEach(item -> item.setOrder(savedOrder));
+        when(userServiceClient.getMembership(1L)).thenReturn(membership);
 
-        when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
+        // Return the order as built by the service so computed pricing fields are preserved
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         OrderResponse response = orderService.placeOrder(1L, request);
 
         assertThat(response).isNotNull();
-        assertThat(response.getTotalAmount()).isEqualByComparingTo(BigDecimal.valueOf(7.98));
+        // subtotal 7.98 + 5% GST (0.40) = 8.38 for a non-member with no platform fee
+        assertThat(response.getSubtotalAmount()).isEqualByComparingTo(BigDecimal.valueOf(7.98));
+        assertThat(response.getTotalAmount()).isEqualByComparingTo(BigDecimal.valueOf(8.38));
         assertThat(response.getStatus()).isEqualTo(OrderStatus.PLACED);
         verify(menuServiceClient).getMenuItemById(1L);
+        verify(userServiceClient).getMembership(1L);
         verify(orderRepository).save(any(Order.class));
         verify(eventPublisher).publishOrderPlaced(any());
     }

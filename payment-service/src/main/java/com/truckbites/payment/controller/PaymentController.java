@@ -1,9 +1,11 @@
 package com.truckbites.payment.controller;
 
-import com.truckbites.payment.dto.PaymentRequest;
 import com.truckbites.payment.dto.CreatePaymentIntentRequest;
+import com.truckbites.payment.dto.CreateRazorpayOrderRequest;
 import com.truckbites.payment.dto.PaymentIntentResponse;
 import com.truckbites.payment.dto.PaymentResponse;
+import com.truckbites.payment.dto.RazorpayOrderResponse;
+import com.truckbites.payment.dto.VerifyRazorpayPaymentRequest;
 import com.truckbites.payment.service.PaymentService;
 import com.truckbites.payment.service.StripePaymentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,27 +46,51 @@ public class PaymentController {
     private final StripePaymentService stripePaymentService;
 
     /**
-     * Process a payment for an order.
-     * Calls the mock gateway and publishes order.paid event on success.
+     * Create a Razorpay order for the given amount.
+     * The returned order id is used by the frontend to open the Razorpay Checkout.
      */
-    @PostMapping
+    @PostMapping("/razorpay/order")
     @Operation(
-            summary = "Process a payment",
-            description = "Processes a payment for the given order. Delegates to a simulated payment gateway " +
-                    "(returns SUCCESS only when a valid UPI transaction reference is supplied). On success, " +
-                    "saves the payment record and publishes an order.paid event to RabbitMQ.",
+            summary = "Create a Razorpay order",
+            description = "Creates a Razorpay order for the given amount in INR. The returned razorpayOrderId " +
+                    "is used by the frontend to initialise the Razorpay Checkout modal and the keyId " +
+                    "identifies the merchant account.",
             security = @SecurityRequirement(name = "Bearer Authentication")
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Payment processed successfully",
+            @ApiResponse(responseCode = "200", description = "Razorpay order created",
+                    content = @Content(schema = @Schema(implementation = RazorpayOrderResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed"),
+            @ApiResponse(responseCode = "401", description = "Authentication required")
+    })
+    public ResponseEntity<RazorpayOrderResponse> createRazorpayOrder(
+            @Valid @RequestBody CreateRazorpayOrderRequest request) {
+        log.info("POST /api/payments/razorpay/order -> createRazorpayOrder for orderId={}", request.getOrderId());
+        return ResponseEntity.ok(paymentService.createRazorpayOrder(request));
+    }
+
+    /**
+     * Verify a Razorpay payment signature and record the payment.
+     * Publishes an order.paid event to RabbitMQ when the signature is valid.
+     */
+    @PostMapping("/razorpay/verify")
+    @Operation(
+            summary = "Verify a Razorpay payment",
+            description = "Verifies the Razorpay payment signature for the given order/payment pair. " +
+                    "On a valid signature the payment is stored as SUCCESS and an order.paid event is " +
+                    "published to RabbitMQ; otherwise it is stored as FAILED.",
+            security = @SecurityRequirement(name = "Bearer Authentication")
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Payment verified and recorded",
                     content = @Content(schema = @Schema(implementation = PaymentResponse.class))),
             @ApiResponse(responseCode = "400", description = "Validation failed"),
             @ApiResponse(responseCode = "401", description = "Authentication required")
     })
-    public ResponseEntity<PaymentResponse> processPayment(
-            @Valid @RequestBody PaymentRequest request) {
-        log.info("POST /api/payments -> processPayment for orderId={}", request.getOrderId());
-        PaymentResponse response = paymentService.processPayment(request);
+    public ResponseEntity<PaymentResponse> verifyRazorpayPayment(
+            @Valid @RequestBody VerifyRazorpayPaymentRequest request) {
+        log.info("POST /api/payments/razorpay/verify -> verifyRazorpayPayment for orderId={}", request.getOrderId());
+        PaymentResponse response = paymentService.verifyAndRecordPayment(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

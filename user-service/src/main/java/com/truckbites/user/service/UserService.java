@@ -1,7 +1,9 @@
 package com.truckbites.user.service;
 
+import com.truckbites.common.exception.BadRequestException;
 import com.truckbites.common.exception.ResourceNotFoundException;
-import com.truckbites.common.payment.PaymentVerification;
+import com.truckbites.common.payment.RazorpayPaymentVerifier;
+import com.truckbites.user.payment.RazorpayOrderAmountVerifier;
 import com.truckbites.user.dto.MembershipResponse;
 import com.truckbites.user.dto.VendorPlanResponse;
 import com.truckbites.user.model.MembershipTier;
@@ -10,9 +12,12 @@ import com.truckbites.user.model.VendorPlan;
 import com.truckbites.user.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -22,6 +27,10 @@ import java.time.LocalDateTime;
 public class UserService {
 
     private final UserProfileRepository userProfileRepository;
+    private final RazorpayOrderAmountVerifier razorpayOrderAmountVerifier;
+
+    @Value("${razorpay.key-secret:}")
+    private String razorpayKeySecret;
 
     public UserProfile getProfile(Long userId) {
         log.debug("Fetching profile for userId: {}", userId);
@@ -83,12 +92,15 @@ public class UserService {
     /**
      * Activates (or upgrades) a membership tier for one month.
      * Renewing an already-active tier extends from the current expiry date.
-     * The plan only activates once the customer's UPI payment is verified via
-     * the supplied transaction reference (UTR).
+     * The plan only activates once the customer's Razorpay payment is verified
+     * via the supplied payment signature.
      */
     @Transactional
-    public MembershipResponse subscribeMembership(Long userId, MembershipTier tier, String transactionRef) {
-        PaymentVerification.requireValidUtr(transactionRef);
+    public MembershipResponse subscribeMembership(Long userId, MembershipTier tier,
+                                                  String razorpayOrderId, String razorpayPaymentId, String razorpaySignature) {
+        RazorpayPaymentVerifier.requireValidSignature(razorpayKeySecret, razorpayOrderId, razorpayPaymentId, razorpaySignature);
+        requirePaidAmount(razorpayOrderId, tier.getMonthlyPrice(),
+                "Membership payment does not match the " + tier.getDisplayName() + " price");
         log.info("Subscribing userId={} to membership tier {}", userId, tier);
         UserProfile profile = getOrCreateProfile(userId);
 
@@ -135,12 +147,15 @@ public class UserService {
     /**
      * Activates (or upgrades) a vendor subscription plan for one month.
      * Renewing an already-active plan extends from the current expiry date.
-     * The plan only activates once the vendor's UPI payment is verified via
-     * the supplied transaction reference (UTR).
+     * The plan only activates once the vendor's Razorpay payment is verified
+     * via the supplied payment signature.
      */
     @Transactional
-    public VendorPlanResponse subscribeVendorPlan(Long userId, VendorPlan plan, String transactionRef) {
-        PaymentVerification.requireValidUtr(transactionRef);
+    public VendorPlanResponse subscribeVendorPlan(Long userId, VendorPlan plan,
+                                                  String razorpayOrderId, String razorpayPaymentId, String razorpaySignature) {
+        RazorpayPaymentVerifier.requireValidSignature(razorpayKeySecret, razorpayOrderId, razorpayPaymentId, razorpaySignature);
+        requirePaidAmount(razorpayOrderId, plan.getMonthlyPrice(),
+                "Plan payment does not match the " + plan.getDisplayName() + " price");
         log.info("Subscribing userId={} to vendor plan {}", userId, plan);
         UserProfile profile = getOrCreateProfile(userId);
 
@@ -171,6 +186,20 @@ public class UserService {
         UserProfile saved = userProfileRepository.save(profile);
         log.info("Vendor plan cancelled for userId={}: plan=FREE", userId);
         return toVendorPlanResponse(saved);
+    }
+
+    /**
+     * Confirms the amount captured against the Razorpay order matches the
+     * expected plan price, so a token payment can't activate a paid plan.
+     */
+    private void requirePaidAmount(String razorpayOrderId, BigDecimal expectedRupees, String message) {
+        long expectedPaise = expectedRupees.multiply(BigDecimal.valueOf(100))
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValueExact();
+        if (!razorpayOrderAmountVerifier.matches(razorpayOrderId, expectedPaise)) {
+            log.warn("Razorpay amount mismatch for orderId={}, expectedPaise={}", razorpayOrderId, expectedPaise);
+            throw new BadRequestException(message + ". Please try again.");
+        }
     }
 
     private UserProfile getOrCreateProfile(Long userId) {

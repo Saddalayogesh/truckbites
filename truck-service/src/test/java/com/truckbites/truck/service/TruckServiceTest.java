@@ -2,11 +2,14 @@ package com.truckbites.truck.service;
 
 import com.truckbites.common.exception.BadRequestException;
 import com.truckbites.common.exception.ResourceNotFoundException;
+import com.truckbites.common.payment.RazorpayPaymentVerifier;
 import com.truckbites.truck.dto.CreateTruckRequest;
 import com.truckbites.truck.dto.UpdateLocationRequest;
 import com.truckbites.truck.model.Truck;
 import com.truckbites.truck.model.TruckStatus;
+import com.truckbites.truck.payment.RazorpayOrderAmountVerifier;
 import com.truckbites.truck.repository.TruckRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,14 +31,28 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TruckServiceTest {
 
+    private static final String TEST_KEY_SECRET = "test_key_secret";
+    private static final String ORDER_ID = "order_test123";
+    private static final String PAYMENT_ID = "pay_test123";
+    private static final String VALID_SIGNATURE =
+            RazorpayPaymentVerifier.sign(TEST_KEY_SECRET, ORDER_ID, PAYMENT_ID);
+
     @Mock
     private TruckRepository truckRepository;
+
+    @Mock
+    private RazorpayOrderAmountVerifier razorpayOrderAmountVerifier;
 
     @InjectMocks
     private TruckService truckService;
 
     @Captor
     private ArgumentCaptor<Truck> truckCaptor;
+
+    @BeforeEach
+    void setUp() {
+        org.springframework.test.util.ReflectionTestUtils.setField(truckService, "razorpayKeySecret", TEST_KEY_SECRET);
+    }
 
     private Truck createDefaultTruck(Long id, Long ownerId) {
         return Truck.builder()
@@ -400,15 +417,16 @@ class TruckServiceTest {
     // ──────────── featureTruck ────────────
 
     @Test
-    @DisplayName("Should feature truck when a valid UTR is provided")
-    void featureTruck_shouldFeature_whenValidUtr() {
+    @DisplayName("Should feature truck when a valid Razorpay signature is provided")
+    void featureTruck_shouldFeature_whenSignatureValid() {
         // Arrange
         Truck existingTruck = createDefaultTruck(1L, 42L);
         when(truckRepository.findByIdAndOwnerId(1L, 42L)).thenReturn(Optional.of(existingTruck));
         when(truckRepository.save(any(Truck.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(razorpayOrderAmountVerifier.matches(ORDER_ID, 29900L)).thenReturn(true);
 
         // Act
-        Truck result = truckService.featureTruck(1L, 42L, 7, "TXN-PROMO123");
+        Truck result = truckService.featureTruck(1L, 42L, 7, ORDER_ID, PAYMENT_ID, VALID_SIGNATURE);
 
         // Assert
         assertThat(result.getFeaturedUntil()).isNotNull();
@@ -418,16 +436,17 @@ class TruckServiceTest {
     }
 
     @Test
-    @DisplayName("Should reject featuring when UTR is missing or invalid")
-    void featureTruck_shouldReject_whenUtrInvalid() {
+    @DisplayName("Should reject featuring when signature is missing or invalid")
+    void featureTruck_shouldReject_whenSignatureInvalid() {
         // Arrange
         Long truckId = 1L;
 
         // Act & Assert
-        assertThatThrownBy(() -> truckService.featureTruck(truckId, 42L, 7, null))
+        assertThatThrownBy(() -> truckService.featureTruck(truckId, 42L, 7, null, null, null))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Payment could not be verified");
-        assertThatThrownBy(() -> truckService.featureTruck(truckId, 42L, 7, "abc"))
+        assertThatThrownBy(() -> truckService.featureTruck(
+                truckId, 42L, 7, ORDER_ID, PAYMENT_ID, "not-a-valid-signature"))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Payment could not be verified");
 
@@ -436,13 +455,14 @@ class TruckServiceTest {
     }
 
     @Test
-    @DisplayName("Should reject featuring when duration is invalid even with a valid UTR")
+    @DisplayName("Should reject featuring when duration is invalid even with a valid signature")
     void featureTruck_shouldReject_whenDurationInvalid() {
         // Arrange
         Long truckId = 1L;
 
         // Act & Assert
-        assertThatThrownBy(() -> truckService.featureTruck(truckId, 42L, 10, "TXN-PROMO123"))
+        assertThatThrownBy(() -> truckService.featureTruck(
+                truckId, 42L, 10, ORDER_ID, PAYMENT_ID, VALID_SIGNATURE))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("Promotion duration must be 7, 15 or 30 days");
 
