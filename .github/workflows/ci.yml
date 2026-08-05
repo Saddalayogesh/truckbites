@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1. Infrastructure file sanity: validate docker-compose + env wiring
+  # --------------------------------------------------------------------------
+  compose:
+    name: Validate docker-compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # docker-compose requires secrets via ${VAR:?} — provide dummy values so
+      # `config` can validate structure (the real .env stays gitignored).
+      - name: Generate minimal .env for validation
+        run: |
+          printf 'MYSQL_ROOT_PASSWORD=ci\nJWT_SECRET=ci-only-compose-validation\nRAZORPAY_KEY_ID=ci\nRAZORPAY_KEY_SECRET=ci\nBREVO_SMTP_LOGIN=\nBREVO_SMTP_KEY=\nFRONTEND_URL=http://localhost:5173\nMAIL_FROM=ci@example.com\n' > .env
+
+      - name: Validate compose file
+        run: docker compose config -q
+
+  # --------------------------------------------------------------------------
+  # 2. Build & install the shared module once (cached via Maven cache)
+  # --------------------------------------------------------------------------
+  backend-shared:
+    name: Backend - shared module
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Install shared module
+        run: mvn -B -q -f shared/truckbites-common/pom.xml install -DskipTests
+
+  # --------------------------------------------------------------------------
+  # 3. Backend: build + run unit tests for every service (parallel matrix)
+  # --------------------------------------------------------------------------
+  backend:
+    name: Backend - ${{ matrix.service }}
+    needs: backend-shared
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - eureka-server
+          - config-server
+          - auth-service
+          - user-service
+          - truck-service
+          - menu-service
+          - order-service
+          - payment-service
+          - notification-service
+          - analytics-service
+          - api-gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Install shared module (cache insurance)
+        run: mvn -B -q -f shared/truckbites-common/pom.xml install -DskipTests
+
+      - name: Build & run tests
+        run: mvn -B -f "services/${{ matrix.service }}/pom.xml" test
+
+      - name: Upload surefire reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/surefire-reports
+          if-no-files-found: ignore
+
+  # --------------------------------------------------------------------------
+  # 4. Frontend: lint, unit tests, production build
+  # --------------------------------------------------------------------------
+  frontend:
+    name: Frontend (Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/truckbites-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/truckbites-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build

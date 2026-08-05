@@ -1,0 +1,12 @@
+target/
+*.class
+node_modules/
+.env
+*.log
+.idea/
+.vscode/
+dist/
+build/
+
+# Development uploads (runtime artifacts)
+uploads/*

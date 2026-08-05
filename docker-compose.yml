@@ -1,0 +1,496 @@
+# ============================================================================
+# TruckBites Microservices - Docker Compose (Windows Optimized)
+# ============================================================================
+# ====================== WINDOWS PERFORMANCE TIPS ===========================
+# 1. Create C:\Users\<you>\.wslconfig with:
+#      [wsl2]
+#      memory=6GB
+#      processors=4
+#      swap=4GB
+#      autoMemoryReclaim=gradual
+#    Then run: wsl --shutdown (in PowerShell)
+# 2. Memory limits below are tuned for 8GB+ RAM hosts (Docker VM ~6GB).
+#    If you have 16GB+, raise JAVA heap to -Xmx512m AND mem_limit back
+#    to 768m+ in x-java-base (a 512m heap needs more than a 512m cap).
+# 3. On first run, building all images takes ~5 min. Subsequent starts
+#    use cached layers and are much faster.
+# 4. To start only specific services, run:
+#      docker compose up -d <service1> <service2>
+#    For example, for auth-only testing:
+#      docker compose up -d eureka-server auth-mysql auth-service api-gateway
+# ============================================================================
+# Start order:  eureka-server → config-server → databases+rabbitmq →
+#   auth/user/truck/payment/notification → menu/order/analytics → api-gateway
+#
+# Create .env with your secrets before starting (see README Quick Start).
+# ============================================================================
+
+# ===========================================================================
+# ROOT-LEVEL EXTENSION FIELDS (YAML anchors for reusable config)
+# ===========================================================================
+
+x-mysql-base: &mysql-base
+  image: mysql:8.0
+  restart: unless-stopped
+  environment: &mysql-env
+    MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in .env}
+  healthcheck:
+    test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 60s
+  networks:
+    - truckbites-network
+  mem_limit: 512m
+  mem_reservation: 256m
+  cpus: '0.5'
+
+x-java-base: &java-base
+  restart: unless-stopped
+  networks:
+    - truckbites-network
+  mem_limit: 512m
+  mem_reservation: 256m
+  cpus: '0.75'
+  environment: &java-env
+    JAVA_TOOL_OPTIONS: -Xms128m -Xmx256m
+    EUREKA_CLIENT_ENABLED: "true"
+    EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    SPRING_DATASOURCE_USERNAME: root
+    SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    CONFIG_SERVER_URI: http://config-server:8888
+    JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+    RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:?RAZORPAY_KEY_ID must be set in .env}
+    RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?RAZORPAY_KEY_SECRET must be set in .env}
+
+# ===========================================================================
+# SERVICES
+# ===========================================================================
+
+services:
+
+  # ===========================================================================
+  # SECTION 1: Infrastructure (no dependencies)
+  # ===========================================================================
+
+  eureka-server:
+    build:
+      context: ./services/eureka-server
+      dockerfile: Dockerfile
+    container_name: truckbites-eureka
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    networks:
+      - truckbites-network
+    mem_limit: 384m
+    mem_reservation: 192m
+    cpus: '0.5'
+    environment:
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx256m
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: truckbites-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    networks:
+      - truckbites-network
+    mem_limit: 384m
+    mem_reservation: 192m
+    cpus: '0.5'
+
+  # ===========================================================================
+  # SECTION 2: Centralized Configuration
+  # ===========================================================================
+
+  config-server:
+    build:
+      context: .
+      dockerfile: services/config-server/Dockerfile
+    container_name: truckbites-config
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      EUREKA_CLIENT_ENABLED: "true"
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx256m
+    depends_on:
+      - eureka-server
+    networks:
+      - truckbites-network
+    mem_limit: 384m
+    mem_reservation: 192m
+    cpus: '0.5'
+
+  # ===========================================================================
+  # SECTION 3: Databases (parallel — no inter-dependencies)
+  # ===========================================================================
+  # All MySQL containers share the same resource template via YAML anchors.
+  # MySQL 8.0 is memory-hungry during startup (innodb buffer pool init).
+  # The generous start_period prevents false HEALTHCHECK failures.
+
+  auth-mysql:
+    <<: *mysql-base
+    container_name: truckbites-auth-mysql
+    environment:
+      <<: *mysql-env
+      MYSQL_DATABASE: truckbites_auth_db
+    ports:
+      - "3308:3306"
+    volumes:
+      - auth_mysql_data:/var/lib/mysql
+
+  user-mysql:
+    <<: *mysql-base
+    container_name: truckbites-user-mysql
+    environment:
+      <<: *mysql-env
+      MYSQL_DATABASE: truckbites_users_db
+    ports:
+      - "3309:3306"
+    volumes:
+      - user_mysql_data:/var/lib/mysql
+
+  truck-mysql:
+    <<: *mysql-base
+    container_name: truckbites-truck-mysql
+    environment:
+      <<: *mysql-env
+      MYSQL_DATABASE: truckbites_truck_db
+    ports:
+      - "3310:3306"
+    volumes:
+      - truck_mysql_data:/var/lib/mysql
+
+  menu-mysql:
+    <<: *mysql-base
+    container_name: truckbites-menu-mysql
+    environment:
+      <<: *mysql-env
+      MYSQL_DATABASE: truckbites_menu_db
+    ports:
+      - "3311:3306"
+    volumes:
+      - menu_mysql_data:/var/lib/mysql
+
+  order-mysql:
+    <<: *mysql-base
+    container_name: truckbites-order-mysql
+    environment:
+      <<: *mysql-env
+      MYSQL_DATABASE: order_db
+    ports:
+      - "3312:3306"
+    volumes:
+      - order_mysql_data:/var/lib/mysql
+
+  payment-mysql:
+    <<: *mysql-base
+    container_name: truckbites-payment-mysql
+    environment:
+      <<: *mysql-env
+      MYSQL_DATABASE: payment_db
+    ports:
+      - "3313:3306"
+    volumes:
+      - payment_mysql_data:/var/lib/mysql
+
+  # ===========================================================================
+  # SECTION 4: Services with no Feign client dependencies (parallel tier)
+  # ===========================================================================
+
+  auth-service:
+    <<: *java-base
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: truckbites-auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:mysql://auth-mysql:3306/truckbites_auth_db
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      config-server:
+        condition: service_started
+      auth-mysql:
+        condition: service_healthy
+
+  user-service:
+    <<: *java-base
+    build:
+      context: .
+      dockerfile: services/user-service/Dockerfile
+    container_name: truckbites-user-service
+    ports:
+      - "8082:8082"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:mysql://user-mysql:3306/truckbites_users_db
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      config-server:
+        condition: service_started
+      user-mysql:
+        condition: service_healthy
+
+  truck-service:
+    <<: *java-base
+    build:
+      context: .
+      dockerfile: services/truck-service/Dockerfile
+    container_name: truckbites-truck-service
+    ports:
+      - "8083:8083"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:mysql://truck-mysql:3306/truckbites_truck_db
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      config-server:
+        condition: service_started
+      truck-mysql:
+        condition: service_healthy
+
+  payment-service:
+    <<: *java-base
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    container_name: truckbites-payment-service
+    ports:
+      - "8086:8086"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:mysql://payment-mysql:3306/payment_db
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      config-server:
+        condition: service_started
+      payment-mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    <<: *java-base
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: truckbites-notification-service
+    ports:
+      - "8087:8087"
+    environment:
+      <<: *java-env
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      BREVO_SMTP_LOGIN: ${BREVO_SMTP_LOGIN:-}
+      BREVO_SMTP_KEY: ${BREVO_SMTP_KEY:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      MAIL_FROM: ${MAIL_FROM:-}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      config-server:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+
+  # ===========================================================================
+  # SECTION 5: Services with Feign client dependencies (sequential tier)
+  # ===========================================================================
+
+  menu-service:
+    <<: *java-base
+    build:
+      context: .
+      dockerfile: services/menu-service/Dockerfile
+    container_name: truckbites-menu-service
+    ports:
+      - "8084:8084"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:mysql://menu-mysql:3306/truckbites_menu_db
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      config-server:
+        condition: service_started
+      menu-mysql:
+        condition: service_healthy
+      truck-service:
+        condition: service_healthy
+
+  order-service:
+    <<: *java-base
+    build:
+      context: .
+      dockerfile: services/order-service/Dockerfile
+    container_name: truckbites-order-service
+    ports:
+      - "8085:8085"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_db
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      config-server:
+        condition: service_started
+      order-mysql:
+        condition: service_healthy
+      menu-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  analytics-service:
+    <<: *java-base
+    build:
+      context: .
+      dockerfile: services/analytics-service/Dockerfile
+    container_name: truckbites-analytics-service
+    ports:
+      - "8088:8088"
+    environment:
+      <<: *java-env
+      SPRING_DATASOURCE_URL: jdbc:mysql://order-mysql:3306/order_db
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8088/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      config-server:
+        condition: service_started
+      order-mysql:
+        condition: service_healthy
+      truck-service:
+        condition: service_healthy
+
+  # ===========================================================================
+  # SECTION 6: API Gateway (starts last — depends on all upstream services)
+  # ===========================================================================
+
+  api-gateway:
+    <<: *java-base
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: truckbites-api-gateway
+    ports:
+      - "8080:8080"
+    mem_limit: 768m
+    mem_reservation: 384m
+    cpus: '0.5'
+    environment:
+      <<: *java-env
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      eureka-server:
+        condition: service_started
+      config-server:
+        condition: service_started
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      truck-service:
+        condition: service_healthy
+      menu-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+
+# ============================================================================
+# Persistent Volumes
+# ============================================================================
+
+volumes:
+  auth_mysql_data:
+    name: truckbites_auth_mysql_data
+  user_mysql_data:
+    name: truckbites_user_mysql_data
+  truck_mysql_data:
+    name: truckbites_truck_mysql_data
+  menu_mysql_data:
+    name: truckbites_menu_mysql_data
+  order_mysql_data:
+    name: truckbites_order_mysql_data
+  payment_mysql_data:
+    name: truckbites_payment_mysql_data
+
+# ============================================================================
+# Shared Network
+# ============================================================================
+
+networks:
+  truckbites-network:
+    name: truckbites-network
+    driver: bridge

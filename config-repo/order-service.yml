@@ -1,0 +1,34 @@
+server:
+  port: 8085
+
+spring:
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
+# Feign circuit breaker tuning: the default 1s TimeLimiter is too tight for
+# cold-start JVM calls, causing transient 503s right after startup. Give
+# calls more headroom while keeping circuit-breaking enabled.
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
+
+app:
+  rabbitmq:
+    exchange: truckbites.exchange
+    routing-key:
+      order-placed: order.placed
+      order-paid: order.paid
+    queue:
+      order-paid: order.paid.queue
+
+jwt:
+  secret: ${JWT_SECRET}
