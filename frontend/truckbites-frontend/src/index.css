@@ -33,26 +33,28 @@
 
 .dark {
   /* Canvas */
-  --cream: 23 18 14;      /* deep warm espresso */
-  --linen: 32 26 20;
-  --surface: 42 34 27;
-  /* Brand — brightened for dark surfaces */
-  --primary: 201 104 66;
-  --primary-dark: 168 80 51;
-  --sage: 201 160 130;
-  --accent: 168 126 58;       /* medium bronze → ink text stays legible */
-  --accent-dark: 214 176 111; /* light bronze for text on dark */
-  /* Semantic */
-  --success: 143 184 122;
-  --success-dark: 167 204 148;
-  --warning: 224 148 66;
-  --error: 229 92 92;
-  /* Text & lines */
-  --ink: 244 238 229;
-  --body: 184 171 156;
-  --line: 61 51 42;
-}
+  --cream: 31 24 20;      /* #1F1814 */
+  --linen: 36 28 23;      /* #241C17 */
+  --surface: 48 38 31;    /* #30261F */
 
+  /* Brand */
+  --primary: 201 104 66;      /* #C96842 */
+  --primary-dark: 184 92 56;  /* #B85C38 */
+  --sage: 214 184 150;        /* warm sand */
+  --accent: 214 176 111;      /* #D6B06F */
+  --accent-dark: 232 199 140; /* lighter gold */
+
+  /* Semantic */
+  --success: 127 176 105;
+  --success-dark: 154 199 132;
+  --warning: 236 166 74;
+  --error: 234 106 106;
+
+  /* Text & Borders */
+  --ink: 244 238 229;     /* #F4EEE5 */
+  --body: 198 183 168;    /* #C6B7A8 */
+  --line: 70 58 48;       /* #463A30 */
+}
 @layer base {
   html {
     scroll-behavior: smooth;
@@ -162,6 +164,21 @@
 
   .glass-strong {
     @apply bg-surface/85 backdrop-blur-2xl border border-line/70 shadow-glass;
+  }
+
+  /* ── Mobile hamburger dropdown ────────────────────────────────── */
+  /* Comfortable, consistent tap targets for every menu row */
+
+  .nav-mobile a:not(.btn),
+  .nav-mobile button {
+    padding-block: 0.625rem;
+  }
+
+  /* Cap the dropdown to the viewport below the 72px navbar,
+     with a vh fallback for browsers that don't support dvh */
+  .nav-mobile-panel {
+    max-height: calc(100vh - 72px);
+    max-height: calc(100dvh - 72px);
   }
 
   /* ── Inputs ───────────────────────────────────────────────────── */

@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Truck, Bell, ShoppingCart, Menu, X, Sun, Moon } from 'lucide-react';
+import { Truck, Bell, ShoppingCart, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { useTheme } from '../context/ThemeContext';
 import { useToast } from './Toast';
+import ThemeToggle from './ThemeToggle';
 import useScrolled from '../hooks/useScrolled';
 
 function TruckMark({ className = 'h-9 w-9' }) {
@@ -44,12 +44,38 @@ function BellButton({ onClick }) {
 export default function Navbar() {
   const { token, role, user, logout } = useAuth();
   const { itemCount } = useCart();
-  const { theme, toggleTheme } = useTheme();
   const { addToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const scrolled = useScrolled(12);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Close the mobile menu whenever the route changes
+  // (location.key also changes for same-route re-navigation and hash links)
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname, location.key]);
+
+  // Prevent background scroll while the mobile menu is open
+  useEffect(() => {
+    if (!menuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [menuOpen]);
+
+  // If the window grows to desktop width, force-close the menu
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(min-width: 1280px)');
+    const onChange = (e) => {
+      if (e.matches) setMenuOpen(false);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   const handleLogout = () => {
     setMenuOpen(false);
@@ -119,7 +145,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop links */}
-          <div className="hidden lg:flex items-center gap-3">
+          <div className="hidden xl:flex items-center gap-3">
             {!token && (
               <>
                 <NavLink to="/" active={isActive('/')}>Home</NavLink>
@@ -167,6 +193,8 @@ export default function Navbar() {
 
           {/* Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Theme toggle — visible for everyone, logged in or not */}
+            <ThemeToggle />
             {!token ? (
               <>
                 <NavLink to="/login" active={isActive('/login')} className="hidden sm:inline">Login</NavLink>
@@ -174,14 +202,6 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <button
-                  onClick={toggleTheme}
-                  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                  title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-                  className="inline-flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-full border border-line bg-surface text-body hover:text-primary hover:border-primary/40 transition-all duration-200"
-                >
-                  {theme === 'dark' ? <Sun className="h-5 w-5" strokeWidth={1.8} /> : <Moon className="h-5 w-5" strokeWidth={1.8} />}
-                </button>
                 {role !== 'ADMIN' && <BellButton onClick={handleBell} />}
                 {role === 'CUSTOMER' && (
                   <Link
@@ -209,7 +229,7 @@ export default function Navbar() {
 
             {/* Logout (desktop) */}
             {token && (
-              <div className="hidden lg:flex items-center">
+              <div className="hidden xl:flex items-center">
                 <button
                   onClick={handleLogout}
                   className="text-sm font-medium text-error hover:text-error/80 transition-colors whitespace-nowrap"
@@ -223,7 +243,9 @@ export default function Navbar() {
             <button
               onClick={() => setMenuOpen((o) => !o)}
               aria-label="Toggle menu"
-              className="lg:hidden inline-flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-full border border-line bg-surface text-ink hover:text-primary transition-colors"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu"
+              className="xl:hidden inline-flex items-center justify-center h-10 w-10 sm:h-11 sm:w-11 rounded-full border border-line bg-surface text-ink hover:text-primary transition-colors"
             >
               {menuOpen ? (
                 <X className="h-5 w-5" strokeWidth={2} />
@@ -237,15 +259,18 @@ export default function Navbar() {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className="lg:hidden glass-strong border-t border-line shadow-glass">
+        <div
+          id="mobile-menu"
+          className="xl:hidden nav-mobile nav-mobile-panel animate-drop-in glass-strong border-t border-line shadow-glass overflow-y-auto overscroll-contain"
+        >
           <div className="container-app py-4 flex flex-col gap-1">
             {!(token && role !== 'CUSTOMER') && (
               <>
                 <NavLink to="/" active={isActive('/')}>Home</NavLink>
                 <NavLink to="/discover" active={isActive('/discover')}>Discover</NavLink>
                 <NavLink to="/pricing" active={isActive('/pricing')}>Pricing</NavLink>
-                <button onClick={() => goToSection('categories')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors py-2">Categories</button>
-                <button onClick={() => goToSection('map')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors py-2">Map</button>
+                <button onClick={() => goToSection('categories')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors">Categories</button>
+                <button onClick={() => goToSection('map')} className="text-left text-sm font-medium text-body hover:text-primary transition-colors">Map</button>
               </>
             )}
 
