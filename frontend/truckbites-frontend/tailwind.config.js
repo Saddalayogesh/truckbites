@@ -72,6 +72,10 @@ export default {
         'spin-slow': {
           to: { transform: 'rotate(360deg)' },
         },
+        'drop-in': {
+          '0%': { opacity: '0', transform: 'translateY(-10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 0.7s cubic-bezier(0.21, 1.02, 0.73, 1) both',
@@ -79,6 +83,7 @@ export default {
         'float-delay': 'float 6s ease-in-out 1s infinite',
         'pulse-soft': 'pulse-soft 2.4s ease-in-out infinite',
         'spin-slow': 'spin-slow 22s linear infinite',
+        'drop-in': 'drop-in 0.25s cubic-bezier(0.21, 1.02, 0.73, 1) both',
       },
     },
   },
